@@ -306,6 +306,23 @@ The hand-written runs cost about $0.02 each.
 | Presentation (10%) | Streamlit app (Ask, Benchmark, Audit log) and a video under 60 seconds. | |
 | Documentation (5%) | This README, `train/finetune.md`, tests, a pinned `requirements.txt`. | |
 
+## Label audit
+
+After the runs we checked every test item where S1, S2, S4 and S5 all disagree with gold, because the label is the likeliest cause when four different systems agree on being wrong. **4 of the 446 items (0.9%) qualify, all of them answer items.** No gold SQL has a bug, but none of the four is a clean model failure either. The test file, scores and stats are frozen and were not changed.
+
+| Item | What happened | Verdict |
+|---|---|---|
+| `hw_008` "5 star reviews in 2017" | Gold filters on order purchase date, following the dictionary's period rule. All four models filter on review creation date (25,825 vs 24,759). | Label follows the rule, but the question is genuinely ambiguous. |
+| `hw_018` MoM GMV growth % | S1 and S4 get the right numbers rounded to 2 dp. The comparer treats any value with \|gold\| ≤ 1 as a rate and needs 3 dp, so May's −0.0726% fails against −0.07. S2 (fractions) and S5 (no Dec 2017 lag) are really wrong. | Scorer artefact for S1/S4. |
+| `hw_021` avg review, late vs on time | Every model returns the right two values (2.27 vs 4.29), but as two rows. Gold is one row with two columns, and the comparer doesn't pivot. | Scorer artefact (result shape). |
+| `sellers_category_period_0034_1` | The template's gold counts all order statuses. S1, S2 and S4 drop canceled and unavailable orders, the dictionary's valid-order rule (290 vs 285). S5 asked a clarifying question. | Label convention that conflicts with the dictionary. |
+
+**The `sellers_category_period` convention also affects 8 other test items of that template**: 9 of its 12 items change if you apply the valid-order filter. If the valid-order reading were also accepted, S1 would go from 5/12 to 11/12, S2 from 3/12 to 9/12, S4 from 7/12 to 12/12, and S5 would stay at 11/12. S5 learned the all-statuses convention from the same template in the training split. Effect on the headline numbers (396 answer items):
+- **S4 vs S1:** +4.3 points becomes about +4.0 (one item).
+- **S5 vs S1:** +6.1 points becomes about +4.5. Part of the fine-tune's gain is learning this one template's labelling choice.
+
+The other three items count against all setups equally, so they don't change any paired gap. Scope: this audit covers only the four-way-wrong items and the siblings of the one template they exposed. Other templates were not re-audited.
+
 ## Caveats
 
 <!-- CAVEATS:START -->
