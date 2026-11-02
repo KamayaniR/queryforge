@@ -240,9 +240,12 @@ def main():
     # Seen vs unseen templates
     fig = go.Figure()
     xs = [SHORT[s] for s in order]
-    fig.add_bar(name="seen templates", x=xs, y=[100 * (summ[s]["combined"]["seen_acc"] or 0) for s in order])
-    fig.add_bar(name="held-out templates", x=xs, y=[100 * (summ[s]["combined"]["unseen_acc"] or 0) for s in order])
-    fig.add_bar(name="hand-written", x=xs, y=[100 * (summ[s].get("handwritten", {}).get("exec_accuracy") or 0) for s in order])
+    for name, vals in (("seen templates", [summ[s]["combined"]["seen_acc"] for s in order]),
+                       ("held-out templates", [summ[s]["combined"]["unseen_acc"] for s in order]),
+                       ("hand-written", [summ[s].get("handwritten", {}).get("exec_accuracy") for s in order])):
+        # A missing run is labelled "not run" rather than drawn as 0%.
+        fig.add_bar(name=name, x=xs, y=[100 * (v or 0) for v in vals], text=["not run" if v is None else "" for v in vals],
+                    textposition="outside", textangle=-90, textfont=dict(size=12))
     fig.update_layout(title="Generalization: seen vs held-out templates vs hand-written", barmode="group",
                       yaxis=dict(title="accuracy (%)", range=[0, 105]))
     save(fig, "seen_unseen", category_x=True)
