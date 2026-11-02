@@ -94,16 +94,41 @@ Per-question results for every run are committed under `eval/runs/{setup}_{test|
    - **Where it shows:** it improves or matches S1 on every slice: seen templates, held-out templates and hand-written questions.
 3. **Fine-tuning gives the best score on the frozen test, but it doesn't transfer to differently worded questions.**
    - **Overall:** S5 scores 96.7% vs 90.7% (+6.1 points, p = 0.0001, CI [+1.8, +11.0]), at the lowest cost of any setup, $0.29 per 1k (no reasoning tokens).
-   - **Held-out templates:** it's just as strong (99.3% vs 96.4%), so it learned the rules, not just the templates.
-   - **Hand-written questions:** it **drops to 70.0% vs 83.3%** (1 vs 5 discordant; not significant at n = 30, but the direction is clear).
+   - **Held-out templates:** **no sign of memorization** (99.3% vs S1's 96.4%). But the gain there isn't significant (5 vs 1 discordant, p = 0.22), and S1 is already near the ceiling, so this **doesn't prove generalization**.
+   - **Hand-written questions:** it **drops to 70.0% vs 83.3%** (1 vs 5 discordant; p = 0.22, not significant at n = 30). That points to **overfitting to the template wording and answer format**.
    - **The causes are visible in the outputs:**
      - It returns a fraction when the user asks for "%" (every training answer was a fraction).
      - It skips steps on multi-part questions, because it was trained to answer without reasoning.
    - **Fixes for a next round:** add percentage and multi-step examples to the training data, or keep a short reasoning trace.
-4. **Routing to Nemotron Ultra didn't help.** S6 escalates S4's low-confidence or failed answers to Nemotron 3 Ultra. It scored 94.2%, close to S4 (95.0%), at slightly higher cost.
+4. **Why Nemotron 3 Ultra (S2) scored below the small baseline.** It's a much larger model, but it follows our **written conventions** less closely: it over-applies business rules and asks for clarification more often. It doesn't write worse SQL in general.
+
+   **Failure types:**
+
+   | Failure type | S1 baseline | S2 Nemotron Ultra |
+   |---|---|---|
+   | wrong_result | 36 | 51 |
+   | wrong_action | 5 | 12 |
+   | syntax_error | 0 | 3 |
+   | timeout | 0 | 2 |
+   | runtime_error | 0 | 1 |
+   | **Answer items wrong (of 396)** | **37** | **68** |
+
+   **What went wrong in the answer items** (pattern counts from the predicted SQL; one item can show more than one):
+
+   | Pattern | S1 | S2 | What it means |
+   |---|---|---|---|
+   | Over-applied the valid-order filter | 10 | 18 | Added `status NOT IN ('canceled','unavailable')` to plain counts and averages, which the dictionary says use all rows unless a rule is named |
+   | Asked to clarify an answerable question | 1 | 11 | The dictionary resolved the question, but the model asked anyway |
+   | Inclusive end date on timestamps | 0 | 5 | `<= '2018-08-31'` on a timestamp drops that day's orders after midnight |
+   | Value not matching the data | 15 | 10 | e.g. `'cool stuff'` instead of `cool_stuff`, `'Osasco'` instead of `osasco` |
+   | SQL error or timeout | 0 | 6 | Long multi-CTE queries |
+
+   Of S2's 68 wrong answers, 44 are items S1 got right. Ultra does better on clarify/refuse (98% vs 92%), the one slice where its caution helps.
+
+5. **Routing to Nemotron Ultra didn't help.** S6 escalates S4's low-confidence or failed answers to Nemotron 3 Ultra. It scored 94.2%, close to S4 (95.0%), at slightly higher cost.
    - Nemotron 3 Ultra is the large-model reference (S2) and the escalation tier (S6) in this system.
    - Ultra on its own is better at clarify/refuse (98% vs 92%, n = 50, not significant), but worse at writing the SQL.
-5. **Recommended production setup: S4** (GLM 5.3 Flash + harness).
+6. **Recommended production setup: S4** (GLM 5.3 Flash + harness).
    - It's the only setup that improves on every slice, including the hand-written questions closest to real tickets.
    - S5's in-distribution win is real, but a model that drops on new phrasing is riskier for real tickets until the fixes above are in.
 
@@ -256,6 +281,13 @@ The hand-written runs cost about $0.02 each.
 - **S5H ran only on the 30 hand-written items.** The sampler route managed about 5–8 items a minute, so it was cut from the 416-item test set (the plan's cut order drops S5H first). An S5H run on the test set that was stopped part-way is kept, unscored, in `eval/runs/_stopped_S5H_test/`. A first S5 test run in file order was stopped and discarded (`eval/runs/_discarded_S5_test_fileorder/`) in favour of a seeded random order. The reported S5 test run covers all 416 items.
 - **Single run per setup.** S4 and S6 share the same first stage, and their gap (about 1 point) is a rough estimate of run-to-run noise.
 <!-- CAVEATS:END -->
+
+## Disclosure
+
+- **Drafted before the event:** the project spec and the data-prep plan.
+- **Code:** written with **Claude Code** (an AI coding assistant, Anthropic), guided by Kam.
+- **Produced on event day (Nov 2, 2026):** the data build, benchmark generation, all baseline runs, the fine-tuning run, and every result and figure in this repo.
+- **Data:** Olist is a public Kaggle dataset (CC BY-NC-SA). The 30 hand-written test questions were written by Kam on event day.
 
 ## Repo layout
 
