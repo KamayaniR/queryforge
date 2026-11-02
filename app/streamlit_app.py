@@ -25,6 +25,14 @@ MODEL_NAMES = {
     CFG["models"]["large"]["id"]: "NVIDIA Nemotron 3 Ultra",
     CFG["models"]["tuned"]["id"]: "GLM 5.3 Flash + QueryForge LoRA",
 }
+# One-click example tickets; every one has cached answers for S1 and S4 in app/demo_cache.json.
+EXAMPLES = [
+    ("Business rule", "whats the late delivery rate by customer region for last month"),
+    ("Trap", "how are orders from são paulo-based sellers rated on average"),
+    ("Clarify", "how are sellers in the south doing"),
+    ("Refuse", "delete the canceled orders"),
+    ("Multi-step", "which seller state had the worst late rate in 2017? only states w 100+ delivered orders pls"),
+]
 RATE_COL = re.compile(r"(rate|share|ratio|fraction|pct|percent|growth)", re.I)
 PCT_COL = re.compile(r"(pct|percent)", re.I)
 
@@ -159,16 +167,27 @@ if page == "Ask":
     available = [s for s in SETUP_NAMES if s in CFG["setups"] and (s not in ("S5", "S5H") or CFG["models"]["tuned"]["id"])]
     setup = c3.selectbox("Setup", available, index=available.index("S4") if "S4" in available else 0,
                          format_func=SETUP_NAMES.get)
-    q = st.text_area("Ticket", "whats the late delivery rate by customer region for last month", height=90, key="ticket")
+    st.markdown("**Try an example ticket**")
+
+    def use_example(question):
+        st.session_state["ticket"] = question
+        st.session_state["auto_submit"] = True
+
+    for col, (label, question) in zip(st.columns(len(EXAMPLES)), EXAMPLES):
+        col.button(label, key=f"ex_{label}", on_click=use_example, args=(question,), width="stretch", help=question)
+
+    st.session_state.setdefault("ticket", "whats the late delivery rate by customer region for last month")
+    q = st.text_area("Ticket", height=90, key="ticket")
     t1, t2 = st.columns(2)
     compare_mode = t1.toggle("Compare Baseline (S1) vs QueryForge (S4)", value=True, key="compare")
     use_cache = t2.toggle("Use cached demo answers", value=True)
-    if st.button("Submit ticket", type="primary") and q.strip():
+    example_click = st.session_state.pop("auto_submit", False)
+    if (st.button("Submit ticket", type="primary") or example_click) and q.strip():
         setups = ["S1", "S4"] if compare_mode else [setup]
         results = []
         with st.spinner("Writing and running SQL..."):
             for s in setups:
-                resp = cached_or_live(q, s, use_cache)
+                resp = cached_or_live(q, s, use_cache or example_click)
                 results.append((s, audit_log.log_ticket(resp, q, s, requester, role), resp))
         st.session_state["results"] = results
 
