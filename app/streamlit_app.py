@@ -241,21 +241,31 @@ if page == "Ask":
     use_cache = t2.toggle("Use cached demo answers", value=True)
     example_click = st.session_state.pop("auto_submit", False)
     if (st.button("Submit ticket", type="primary") or example_click) and q.strip():
-        setups = ["S1", "S4"] if compare_mode else [setup]
-        results = []
+        cache_only = use_cache or example_click
         with st.spinner("Writing and running SQL..."):
-            for s in setups:
-                resp = cached_or_live(q, s, use_cache or example_click)
-                results.append((s, audit_log.log_ticket(resp, q, s, requester, role), resp))
+            if compare_mode:
+                # One audit row per ticket: the QueryForge (S4) answer, with the S1 result stored on it.
+                base, main = cached_or_live(q, "S1", cache_only), cached_or_live(q, "S4", cache_only)
+                tid = audit_log.log_ticket(main, q, "S4", requester, role,
+                                           comparison=audit_log.summarize_comparison("S1", base))
+                results = [("S1", None, base), ("S4", tid, main)]
+            else:
+                resp = cached_or_live(q, setup, cache_only)
+                results = [(setup, audit_log.log_ticket(resp, q, setup, requester, role), resp)]
         st.session_state["results"] = results
         st.session_state["asked"] = q
 
-    def approve_flag(tid, key):
+    def review_controls(tid, resp):
+        """Approve / Flag for answers; refusals and clarifications get their status automatically."""
+        status = audit_log.AUTO_STATUS.get(resp.action)
+        if status:
+            st.caption(f"Logged as **{status}**.")
+            return
         a, b = st.columns(2)
-        if a.button("Approve", key=f"approve_{key}"):
+        if a.button("Approve", key=f"approve_{tid}"):
             audit_log.set_status(tid, "approved", requester)
             st.success("Approved and logged.")
-        if b.button("Flag for data engineer", key=f"flag_{key}"):
+        if b.button("Flag for data engineer", key=f"flag_{tid}"):
             audit_log.set_status(tid, "flagged", requester)
             st.warning("Flagged for review.")
 
@@ -264,13 +274,16 @@ if page == "Ask":
         for col, (s, tid, resp) in zip(st.columns(len(results), gap="large"), results):
             with col:
                 st.subheader(SETUP_NAMES[s])
-                render_answer(resp, tid, compact=True, question=st.session_state.get("asked", ""))
-                approve_flag(tid, tid)
+                render_answer(resp, s, compact=True, question=st.session_state.get("asked", ""))
+                if tid:
+                    review_controls(tid, resp)
+                else:
+                    st.caption("Comparison only: stored on the QueryForge ticket in the audit log.")
     elif results:
         s, tid, resp = results[0]
         st.subheader(SETUP_NAMES[s])
-        render_answer(resp, tid, question=st.session_state.get("asked", ""))
-        approve_flag(tid, tid)
+        render_answer(resp, s, question=st.session_state.get("asked", ""))
+        review_controls(tid, resp)
 
 elif page == "Benchmark":
     st.title("Benchmark")
@@ -339,25 +352,42 @@ elif page == "Benchmark":
 
 else:
     st.title("Audit log")
-    st.caption("Every submitted ticket is logged. Approve / Flag on the Ask page update the status here.")
+    st.caption("One row per submitted ticket: who asked, what QueryForge did, and whether a reviewer approved or flagged it.")
     all_rows = audit_log.recent()
     counts = {s: sum(r["status"] == s for r in all_rows) for s in audit_log.STATUSES}
-    c = st.columns(4)
-    c[0].metric("Tickets", len(all_rows))
-    for col, s in zip(c[1:], audit_log.STATUSES):
-        col.metric(s.capitalize(), counts[s])
+    cards = [("Tickets", len(all_rows))] + [(s.capitalize(), counts[s]) for s in audit_log.STATUSES]
+    for col, (label, value) in zip(st.columns(len(cards)), cards):
+        col.metric(label, value)
     f1, f2 = st.columns([1, 2])
     status = f1.selectbox("Status", ["all", *audit_log.STATUSES], key="status_filter")
     search = f2.text_input("Search", key="audit_search")
     rows = audit_log.recent(status=None if status == "all" else status)
     if search:
         rows = [r for r in rows if search.lower() in " ".join(map(str, r.values())).lower()]
+
+    def baseline_label(r):
+        c = r.get("comparison")
+        if not c:
+            return ""
+        if c.get("error"):
+            return "failed"
+        if c["action"] == r["action"] and (c["action"] != "answer" or c["result_hash"] == r["result_hash"]):
+            return "same result"
+        return f"different ({c['action']}, {c['row_count']} rows)" if c["action"] == "answer" else f"different ({c['action']})"
+
     if rows:
-        df = pd.DataFrame(rows)[["ts", "requester", "role", "question", "setup", "action", "status", "approved_by"]]
-        df["setup"] = df["setup"].map(lambda s: ALL_SETUP_NAMES.get(s, s))
-        df["approved_by"] = df["approved_by"].fillna("")
-        df = df.rename(columns={"ts": "Timestamp", "requester": "Requester", "role": "Role", "question": "Question",
-                                "setup": "Setup", "action": "Action", "status": "Status", "approved_by": "Reviewed by"})
-        st.dataframe(df, width="stretch", hide_index=True)
+        df = pd.DataFrame([{
+            "Time": r["ts"][5:16], "Requester": r["requester"], "Role": r["role"], "Question": r["question"],
+            "Setup": r["setup"], "Action": r["action"], "Status": r["status"],
+            "Reviewed by": r["approved_by"] or "", "Baseline (S1)": baseline_label(r),
+        } for r in rows])
+        cfg = st.column_config
+        st.dataframe(df, width="stretch", hide_index=True, column_config={
+            "Time": cfg.TextColumn(width=95), "Requester": cfg.TextColumn(width=135), "Role": cfg.TextColumn(width=65),
+            "Question": cfg.TextColumn(width=300), "Setup": cfg.TextColumn(width=55), "Action": cfg.TextColumn(width=65),
+            "Status": cfg.TextColumn(width=130), "Reviewed by": cfg.TextColumn(width=135),
+            "Baseline (S1)": cfg.TextColumn(width=150, help="Baseline result on the same ticket (compare mode)"),
+        })
+        st.caption("Setup S4 = QueryForge harness. In compare mode the baseline (S1) result is stored on the same row.")
     else:
         st.write("No tickets match.")
