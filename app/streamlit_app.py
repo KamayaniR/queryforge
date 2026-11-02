@@ -185,7 +185,7 @@ def render_answer(resp, key: str, compact: bool = False, question: str = ""):
     """Answer card: sentence, metrics, table, explanation, SQL."""
     st.markdown(f"#### {answer_sentence(resp)}")
     metrics = [("Confidence", resp.confidence), ("Latency", f"{resp.latency_ms / 1000:.1f}s"),
-               ("Cost", f"${resp.cost_usd:.5f}"), ("Action", resp.action)]
+               ("Cost", f"${resp.cost_usd:.5f}"), ("Action", "failed" if resp.error else resp.action)]
     rows = [metrics[:2], metrics[2:]] if compact else [metrics]
     for row in rows:
         for col, (label, value) in zip(st.columns(len(row)), row):

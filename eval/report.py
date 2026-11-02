@@ -29,6 +29,10 @@ CHART = {"S0": "GLM 5.3 Flash<br>schema only (S0)", "S1": "GLM 5.3 Flash<br>base
          "S2": "Nemotron 3 Ultra<br>(S2)", "S4": "GLM 5.3 Flash<br>+ harness (S4)",
          "S5": "GLM 5.3 Flash<br>fine-tuned (S5)", "S5H": "GLM 5.3 Flash<br>fine-tuned + harness (S5H)",
          "S6": "Flash + harness<br>→ Ultra router (S6)"}
+# Compact two-line labels for the 7-bar generalization chart, so neighbours don't overlap.
+SHORT = {"S0": "Flash<br>schema only (S0)", "S1": "Flash<br>baseline (S1)", "S2": "Nemotron<br>Ultra (S2)",
+         "S4": "Flash<br>+ harness (S4)", "S5": "Flash<br>fine-tuned (S5)", "S5H": "Flash FT<br>+ harness (S5H)",
+         "S6": "Flash → Ultra<br>router (S6)"}
 TAG = {"S0": "Flash, schema only", "S1": "Flash baseline", "S2": "Nemotron 3 Ultra", "S4": "Flash + harness",
        "S5": "Flash fine-tuned", "S5H": "Flash FT + harness", "S6": "Flash → Ultra router"}
 CATS = ["simple", "join", "date", "business_rule", "gotcha", "clarify", "refuse"]
@@ -228,13 +232,14 @@ def main():
                                  marker=dict(size=16, color="#2a9d8f" if s in ("S4", "S5", "S5H", "S6") else "#9aa5b1"
                                              if s in ("S0", "S1") else "#264653"), name=LABELS[s], showlegend=False))
     fig.update_layout(title="Quality vs cost (green = QueryForge setups, gray = GLM baselines)",
-                      xaxis=dict(title="USD per 1,000 tickets (log)", type="log", range=[-0.75, 0.6]),
+                      xaxis=dict(title="USD per 1,000 tickets (log)", type="log", range=[-0.75, 0.6],
+                                 tickvals=[0.2, 0.5, 1, 2], ticktext=["$0.20", "$0.50", "$1", "$2"]),
                       yaxis=dict(title="execution accuracy (%)", range=[45, 102]))
     save(fig, "tradeoff")
 
     # Seen vs unseen templates
     fig = go.Figure()
-    xs = [CHART[s] for s in order]
+    xs = [SHORT[s] for s in order]
     fig.add_bar(name="seen templates", x=xs, y=[100 * (summ[s]["combined"]["seen_acc"] or 0) for s in order])
     fig.add_bar(name="held-out templates", x=xs, y=[100 * (summ[s]["combined"]["unseen_acc"] or 0) for s in order])
     fig.add_bar(name="hand-written", x=xs, y=[100 * (summ[s].get("handwritten", {}).get("exec_accuracy") or 0) for s in order])
