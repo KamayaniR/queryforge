@@ -1,0 +1,16 @@
+S4_hw: 30 to run (0 already done), budget $5.0
+  25/30  $0.015  17s
+  30/30  $0.019  19s
+{
+ "n": 30,
+ "exec_accuracy": 0.9,
+ "behavior_accuracy": null,
+ "false_clarify_rate": 0.0,
+ "p50_latency_ms": 3913,
+ "p95_latency_ms": 8216,
+ "cost_usd": 0.0187,
+ "cost_per_1k": 0.6226,
+ "failures": {
+  "wrong_result": 3
+ }
+}
