@@ -225,7 +225,28 @@ page = st.sidebar.radio("Page", ["Ask", "Benchmark", "Audit log"])
 
 if page == "Ask":
     st.title("QueryForge")
-    st.caption("Ask a data question in plain English. Answers come from the Olist database (as of 2018-08-31), read-only.")
+    st.markdown(
+        "Ask a data question the way you'd write a ticket. QueryForge writes the SQL, runs it read-only against the "
+        "Olist e-commerce database (data as of 2018-08-31), checks the result, and answers in seconds, with the SQL "
+        "and the business rules it applied. Compare mode runs the same ticket on the plain baseline model so you can "
+        "see the difference.")
+    with st.expander("How it works"):
+        st.markdown(
+            "1. **Pre-filter:** requests to change or delete data, requests for personal data, prompt injection and "
+            "non-data questions are refused before any model call.\n"
+            "2. **Context:** the model, GLM 5.3 Flash on Fireworks, gets the schema, the company's **business "
+            "rules** (valid order, GMV, active seller, late delivery, fiscal year, as-of date…) and the real values of "
+            "key columns (statuses, states, category names).\n"
+            "3. **SQL:** the model returns one SELECT query, or asks a clarifying question if the ticket is ambiguous.\n"
+            "4. **Safety:** the query is parsed, must be a single read-only SELECT, and can only use known tables. It "
+            "runs on a read-only connection with a 10-second timeout.\n"
+            "5. **Retry and checks:** if the query fails, the error goes back to the model (up to 2 retries). Sanity "
+            "checks catch empty results, rates outside 0–1 and too many rows, and the model gets one chance to repair.\n"
+            "6. **Answer:** a plain-English answer, the table, the SQL, the rules applied and a confidence level. Every "
+            "ticket is written to the audit log, where a reviewer can approve or flag it.\n\n"
+            "**Baseline vs QueryForge:** both use GLM 5.3 Flash with the same prompt and business rules. The baseline "
+            "is a single model call. QueryForge adds steps 1, 2 (column values), 5 and the review flow. On the frozen "
+            "benchmark that lifts accuracy from 90.7% to 94.9% (p = 0.0015). See the Benchmark page.")
     c1, c2, c3 = st.columns([2, 1, 1])
     requester = c1.text_input("Requester", "kam@company.com")
     role = c2.selectbox("Role", ["analyst", "pm", "auditor", "ops"])
@@ -241,7 +262,7 @@ if page == "Ask":
     for col, (label, question) in zip(st.columns(len(EXAMPLES)), EXAMPLES):
         col.button(label, key=f"ex_{label}", on_click=use_example, args=(question,), width="stretch", help=question)
 
-    st.session_state.setdefault("ticket", "whats the late delivery rate by customer region for last month")
+    st.session_state.setdefault("ticket", "how many watches gifts products are in the catalog")
     q = st.text_area("Ticket", height=90, key="ticket")
     t1, t2 = st.columns(2)
     compare_mode = t1.toggle("Compare Baseline (GLM 5.3 Flash) vs QueryForge (GLM 5.3 Flash + harness)",

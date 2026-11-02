@@ -19,6 +19,7 @@ from eval.stats import compare_runs, load_run  # noqa: E402
 CFG = yaml.safe_load(open(ROOT / "config.yaml"))
 FIG = ROOT / CFG["paths"]["figures"]
 SETUPS = ["S0", "S1", "S2", "S4", "S5", "S5H", "S6"]
+HEADLINE_SETUP = "S4"  # recommended production setup (README findings)
 # Model name first, setup code as a tag (codes match eval/runs/ and config.yaml).
 LABELS = {"S0": "GLM 5.3 Flash, schema only (S0)", "S1": "GLM 5.3 Flash + dictionary, baseline (S1)",
           "S2": "Nemotron 3 Ultra + dictionary (S2)", "S4": "GLM 5.3 Flash + harness (S4)",
@@ -104,23 +105,34 @@ def main():
         }
     small = [s for s in present if s not in ("S1", "S2", "S0")]
     best = max(small, key=lambda s: summ[s]["combined"]["exec_accuracy"]) if small else None
+    # Headline = the recommended production setup (S4), not simply the top combined score: S5 scores higher
+    # on the frozen test but drops on hand-written questions (see README findings).
+    head = HEADLINE_SETUP if HEADLINE_SETUP in present else best
 
     # 1. Headline table
-    b, n = summ["S1"]["combined"], summ[best]["combined"] if best else None
+    b, n = summ["S1"]["combined"], summ[head]["combined"] if head else None
     headline = [("Execution accuracy (answer items)", b["exec_accuracy"], n and n["exec_accuracy"], True),
+                ("Hand-written questions (n = 30)", summ["S1"]["handwritten"]["exec_accuracy"],
+                 summ[head].get("handwritten", {}).get("exec_accuracy"), True),
                 ("Behavior accuracy (clarify/refuse)", b["behavior_accuracy"], n and n["behavior_accuracy"], True),
                 ("Cost per 1k tickets (USD)", b["cost_per_1k"], n and n["cost_per_1k"], False),
                 ("p50 latency (ms)", b["p50_latency_ms"], n and n["p50_latency_ms"], False)]
-    md = [f"### Headline: {LABELS[best]} vs S1 baseline (combined test + hand-written)\n",
-          "| Metric | S1 baseline | Best | Gain |", "|---|---|---|---|"]
+    md = [f"### Headline: {LABELS[head]} vs {LABELS['S1']} (combined test + hand-written)\n",
+          f"| Metric | {LABELS['S1']} | {LABELS[head]} | Gain |", "|---|---|---|---|"]
     for name, x, y, pct in headline:
         gain = None if y is None or x is None else (gap_pts(y, x) if pct else y - x)
         g = "-" if gain is None else (f"{gain:+.1f} pts" if pct else f"{gain:+.3f}" if isinstance(gain, float) else f"{gain:+d}")
         md.append(f"| {name} | {fmt(x, pct)} | {fmt(y, pct)} | {g} |")
-    st = stats[best]["answer_combined"]
+    st = stats[head]["answer_combined"]
     md.append(f"\nAccuracy gap {gap_pts(st['new_acc'], st['base_acc']):+.1f} pts, 95% cluster-bootstrap CI [{100 * st['ci95'][0]:+.1f}, "
-              f"{100 * st['ci95'][1]:+.1f}], McNemar p = {st['p_value']:.4f} ({st['only_new_right']} items only {best} "
+              f"{100 * st['ci95'][1]:+.1f}], McNemar p = {st['p_value']:.4f} ({st['only_new_right']} items only {head} "
               f"got right vs {st['only_base_right']} only S1 got right) -> **{st['verdict']}**.\n")
+    if best and best != head:
+        v = stats[best]["answer_combined"]
+        md.append(f"{LABELS[best]} has the highest combined score ({fmt(summ[best]['combined']['exec_accuracy'])}, "
+                  f"{gap_pts(v['new_acc'], v['base_acc']):+.1f} pts vs S1), but drops on the hand-written questions "
+                  f"({fmt(summ[best].get('handwritten', {}).get('exec_accuracy'))} vs "
+                  f"{fmt(summ['S1']['handwritten']['exec_accuracy'])}), so it is not the headline. See the findings below.\n")
 
     # Summary table
     md += ["### All setups\n",
@@ -176,16 +188,21 @@ def main():
     # 3. Significance chart
     comp = [s for s in ["S0", "S2", "S4", "S5", "S5H", "S6"] if s in stats and stats[s]["answer_combined"]]
     fig = go.Figure()
-    fig.add_bar(name="only this setup right", x=[CHART[s] for s in comp],
-                y=[stats[s]["answer_combined"]["only_new_right"] for s in comp], marker_color="#2a9d8f")
-    fig.add_bar(name="only the baseline right", x=[CHART[s] for s in comp],
-                y=[stats[s]["answer_combined"]["only_base_right"] for s in comp], marker_color="#e76f51")
-    for s in comp:
+    new_right = [stats[s]["answer_combined"]["only_new_right"] for s in comp]
+    base_right = [stats[s]["answer_combined"]["only_base_right"] for s in comp]
+    fig.add_bar(name="only this setup right", x=[CHART[s] for s in comp], y=new_right, marker_color="#2a9d8f",
+                text=new_right, textposition="outside", cliponaxis=False)
+    fig.add_bar(name="only the baseline right", x=[CHART[s] for s in comp], y=base_right, marker_color="#e76f51",
+                text=base_right, textposition="outside", cliponaxis=False)
+    top = max(new_right + base_right)
+    for s, a, b_ in zip(comp, new_right, base_right):
         v = stats[s]["answer_combined"]
-        fig.add_annotation(x=CHART[s], y=max(v["only_new_right"], v["only_base_right"]) + 6,
-                           text=f"{v['verdict']}<br>p={v['p_value']:.3g}", showarrow=False, font=dict(size=12))
+        # Verdict sits above both bars and their value labels, anchored at its bottom so it never overlaps them.
+        fig.add_annotation(x=CHART[s], y=max(a, b_), yanchor="bottom", yshift=26, showarrow=False,
+                           text=f"<b>{v['verdict']}</b><br>p = {v['p_value']:.2g}", font=dict(size=12))
     fig.update_layout(title="Disagreements with the baseline, GLM 5.3 Flash (S1) — McNemar", barmode="group",
-                      yaxis_title="items")
+                      yaxis=dict(title="items", range=[0, top * 1.35]),
+                      legend=dict(orientation="h", yanchor="bottom", y=1.0, x=0))
     save(fig, "significance", category_x=True)
 
     # 4. Interval chart
@@ -225,7 +242,7 @@ def main():
                       yaxis=dict(title="accuracy (%)", range=[0, 105]))
     save(fig, "seen_unseen", category_x=True)
 
-    json.dump({"best_setup": best, "summaries": summ, "stats_vs_S1": stats}, open(ROOT / "eval" / "summary.json", "w"), indent=1)
+    json.dump({"best_setup": best, "headline_setup": head, "summaries": summ, "stats_vs_S1": stats}, open(ROOT / "eval" / "summary.json", "w"), indent=1)
     readme = ROOT / "README.md"
     if readme.exists():
         text = readme.read_text()

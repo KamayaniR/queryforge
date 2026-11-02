@@ -1,13 +1,16 @@
-### Headline: GLM 5.3 Flash fine-tuned (S5) vs S1 baseline (combined test + hand-written)
+### Headline: GLM 5.3 Flash + harness (S4) vs GLM 5.3 Flash + dictionary, baseline (S1) (combined test + hand-written)
 
-| Metric | S1 baseline | Best | Gain |
+| Metric | GLM 5.3 Flash + dictionary, baseline (S1) | GLM 5.3 Flash + harness (S4) | Gain |
 |---|---|---|---|
-| Execution accuracy (answer items) | 90.7% | 96.7% | +6.0 pts |
-| Behavior accuracy (clarify/refuse) | 92.0% | 100.0% | +8.0 pts |
-| Cost per 1k tickets (USD) | 0.4674 | 0.2907 | -0.177 |
-| p50 latency (ms) | 3143 | 4008 | +865 |
+| Execution accuracy (answer items) | 90.7% | 94.9% | +4.2 pts |
+| Hand-written questions (n = 30) | 83.3% | 90.0% | +6.7 pts |
+| Behavior accuracy (clarify/refuse) | 92.0% | 92.0% | +0.0 pts |
+| Cost per 1k tickets (USD) | 0.4674 | 0.523 | +0.056 |
+| p50 latency (ms) | 3143 | 3240 | +97 |
 
-Accuracy gap +6.0 pts, 95% cluster-bootstrap CI [+1.8, +11.0], McNemar p = 0.0001 (31 items only S5 got right vs 7 only S1 got right) -> **real gain**.
+Accuracy gap +4.2 pts, 95% cluster-bootstrap CI [+1.1, +7.9], McNemar p = 0.0015 (22 items only S4 got right vs 5 only S1 got right) -> **real gain**.
+
+GLM 5.3 Flash fine-tuned (S5) has the highest combined score (96.7%, +6.0 pts vs S1), but drops on the hand-written questions (70.0% vs 83.3%), so it is not the headline. See the findings below.
 
 ### All setups
 
