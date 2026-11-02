@@ -221,15 +221,88 @@ def cached_or_live(q, setup, use_cache):
     return resp
 
 
+CSS = """
+<style>
+.stApp { background: linear-gradient(180deg, #f5f7fb 0%, #eef2fb 100%); }
+.block-container { padding-top: 3.6rem; max-width: 1280px; }
+[data-testid="stHeader"] { background: transparent; }
+h1 { background: linear-gradient(90deg, #4338ca, #0d9488); -webkit-background-clip: text; background-clip: text;
+     color: transparent !important; font-weight: 800 !important; letter-spacing: -0.02em; }
+[data-testid="stSidebar"] { background: linear-gradient(180deg, #1e1b4b 0%, #312e81 55%, #115e59 100%);
+     min-width: 240px !important; max-width: 240px !important; }
+[data-testid="stSidebar"] * { color: #eef2ff !important; }
+[data-testid="stMetric"] { background: #ffffff; border: 1px solid #e3e8f4; border-radius: 14px;
+     padding: 0.8rem 1rem; box-shadow: 0 1px 3px rgba(30, 27, 75, 0.06); }
+[data-testid="stExpander"] { background: #ffffff; border-radius: 12px; }
+.qf-hero { background: linear-gradient(120deg, #1e1b4b 0%, #4338ca 45%, #0d9488 100%); border-radius: 20px;
+     padding: 2.1rem 2.4rem; color: #ffffff; box-shadow: 0 10px 30px rgba(67, 56, 202, 0.25); margin-bottom: 1.2rem; }
+.qf-hero .qf-name { font-size: 3rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.05;
+     background: linear-gradient(90deg, #ffffff, #a5f3fc); -webkit-background-clip: text; background-clip: text;
+     color: transparent; }
+.qf-hero .qf-tag { font-size: 1.2rem; margin-top: 0.4rem; color: #e0e7ff; }
+.qf-hero .qf-pills { margin-top: 1rem; }
+.qf-hero .qf-pill { display: inline-block; background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(255, 255, 255, 0.28);
+     border-radius: 999px; padding: 0.2rem 0.75rem; margin: 0 0.4rem 0.4rem 0; font-size: 0.85rem; color: #ffffff; }
+.qf-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.4rem; }
+@media (max-width: 900px) { .qf-cards { grid-template-columns: 1fr; } }
+.qf-card { background: #ffffff; border-radius: 16px; padding: 1.1rem 1.3rem; border: 1px solid #e3e8f4;
+     box-shadow: 0 2px 10px rgba(30, 27, 75, 0.06); border-top: 5px solid var(--accent); }
+.qf-card h4 { margin: 0 0 0.4rem 0; color: var(--accent); font-size: 1.05rem; }
+.qf-card p { margin: 0; color: #374151; font-size: 0.95rem; line-height: 1.5; }
+.qf-card b { color: #111827; }
+.qf-brand { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.1rem; }
+.qf-brand-sub { font-size: 0.85rem; opacity: 0.85; margin-bottom: 1rem; }
+</style>
+"""
+st.markdown(CSS, unsafe_allow_html=True)
+st.sidebar.markdown('<div class="qf-brand">🔎 QueryForge</div>'
+                    '<div class="qf-brand-sub">Data tickets, answered in seconds</div>', unsafe_allow_html=True)
+
+
+def proof_numbers():
+    """Headline numbers for the hero cards, read from eval/summary.json so they match the benchmark."""
+    p = ROOT / "eval" / "summary.json"
+    if not p.exists():
+        return None
+    s = json.loads(p.read_text())
+    v, u = s["stats_vs_S1"]["S4"]["answer_combined"], s["stats_vs_S1"]["S4_vs_S2"]["answer_combined"]
+    cost = {k: s["summaries"][k]["combined"]["cost_per_1k"] for k in ("S4", "S2")}
+    gap = lambda x: round(round(100 * x["new_acc"], 1) - round(100 * x["base_acc"], 1), 1)  # noqa: E731
+    return {"base": 100 * v["base_acc"], "new": 100 * v["new_acc"], "p": v["p_value"], "n": v["n"],
+            "vs_ultra": gap(u), "cost_ratio": cost["S2"] / cost["S4"]}
+
+
+def hero():
+    st.markdown(
+        '<div class="qf-hero"><div class="qf-name">QueryForge</div>'
+        '<div class="qf-tag">Ask a data question like a ticket. Get the answer, the SQL and the business rules '
+        'behind it in seconds, not days.</div><div class="qf-pills">'
+        '<span class="qf-pill">GLM 5.3 Flash on Fireworks</span><span class="qf-pill">Read-only SQL</span>'
+        '<span class="qf-pill">Business rules built in</span><span class="qf-pill">Audit trail</span></div></div>',
+        unsafe_allow_html=True)
+    pn = proof_numbers()
+    proof = (f"On a frozen benchmark of {pn['n']} answerable questions, accuracy goes from <b>{pn['base']:.1f}% to "
+             f"{pn['new']:.1f}%</b> over the same model alone (p = {pn['p']:.4f}). It also beats NVIDIA Nemotron 3 Ultra "
+             f"by <b>{pn['vs_ultra']:+.1f} pts</b> at about <b>1/{pn['cost_ratio']:.0f} of the cost</b>."
+             if pn else "See the Benchmark page.")
+    st.markdown(
+        '<div class="qf-cards">'
+        '<div class="qf-card" style="--accent:#e76f51"><h4>The problem</h4><p>PMs, auditors and ops teams need '
+        'numbers but can\'t write SQL. Their tickets wait <b>hours or days</b> for a data engineer. Generic AI tools '
+        'don\'t know company definitions: is "revenue" with or without canceled orders? Who counts as a '
+        '"customer"? So they get exactly those questions wrong.</p></div>'
+        '<div class="qf-card" style="--accent:#4338ca"><h4>What QueryForge does</h4><p>It reads the schema and the '
+        'company\'s <b>business rules</b>, writes one SQL query, runs it <b>read-only</b>, checks the result and '
+        'answers with the SQL and its assumptions. If a ticket is ambiguous it <b>asks</b>. If it asks to change '
+        'data or for personal data it <b>refuses</b>. Every answer is logged for review.</p></div>'
+        f'<div class="qf-card" style="--accent:#0d9488"><h4>The proof</h4><p>{proof}</p></div>'
+        '</div>', unsafe_allow_html=True)
+
+
 page = st.sidebar.radio("Page", ["Ask", "Benchmark", "Audit log"])
 
 if page == "Ask":
-    st.title("QueryForge")
-    st.markdown(
-        "Ask a data question the way you'd write a ticket. QueryForge writes the SQL, runs it read-only against the "
-        "Olist e-commerce database (data as of 2018-08-31), checks the result, and answers in seconds, with the SQL "
-        "and the business rules it applied. Compare mode runs the same ticket on the plain baseline model so you can "
-        "see the difference.")
+    hero()
     with st.expander("How it works"):
         st.markdown(
             "1. **Pre-filter:** requests to change or delete data, requests for personal data, prompt injection and "
@@ -333,15 +406,17 @@ elif page == "Benchmark":
         def gap_pts(v):
             return round(round(100 * v["new_acc"], 1) - round(100 * v["base_acc"], 1), 1)
 
-        c[0].metric("Accuracy: Baseline → QueryForge", f"{100 * s4['base_acc']:.1f}% → {100 * s4['new_acc']:.1f}%",
-                    f"{gap_pts(s4):+.1f} pts · p = {s4['p_value']:.4f}")
-        c[1].metric("QueryForge vs Nemotron 3 Ultra", f"{gap_pts(s4_s2):+.1f} pts",
-                    f"{100 * s4_s2['base_acc']:.1f}% → {100 * s4_s2['new_acc']:.1f}% · p < 0.001"
-                    if s4_s2["p_value"] < 0.001 else f"p = {s4_s2['p_value']:.3f}")
-        c[2].metric("Cost per 1k tickets (QueryForge)", f"${cost['S4']:.2f}",
-                    f"S1 ${cost['S1']:.2f} · S2 ${cost['S2']:.2f}", delta_color="off")
-        c[3].metric("Est. monthly savings", f"~${round(savings, -1):,.0f}",
-                    f"{tickets} tickets × {int(resolved * 100)}% × {minutes_saved} min × ${wage}/h", delta_color="off")
+        # "\$" keeps Streamlit from reading a pair of dollar signs as LaTeX
+        c[0].metric("QueryForge accuracy", f"{100 * s4['new_acc']:.1f}%",
+                    f"{gap_pts(s4):+.1f} pts vs {100 * s4['base_acc']:.1f}% · p = {s4['p_value']:.4f}")
+        c[1].metric(f"vs Nemotron 3 Ultra ({100 * s4_s2['base_acc']:.1f}%)", f"{gap_pts(s4_s2):+.1f} pts",
+                    "p < 0.001" if s4_s2["p_value"] < 0.001 else f"p = {s4_s2['p_value']:.3f}")
+        c[2].metric("Cost per 1k tickets", f"\\${cost['S4']:.2f}",
+                    f"baseline \\${cost['S1']:.2f} · Ultra \\${cost['S2']:.2f}", delta_color="off", delta_arrow="off")
+        c[3].metric("Est. monthly savings", f"~\\${round(savings, -1):,.0f}", "engineer time, 200 tickets/mo",
+                    delta_color="off", delta_arrow="off",
+                    help=f"{tickets} tickets × {int(resolved * 100)}% resolved × {minutes_saved} min saved × "
+                         f"\\${wage}/h (BLS 2024 median, data scientists)")
         st.caption(f"Accuracy on {s4['n']} answer items (test + hand-written), 95% CI for the S4 gain "
                    f"[{100 * s4['ci95'][0]:+.1f}, {100 * s4['ci95'][1]:+.1f}] pts. Savings are an estimate from stated "
                    "assumptions (see README), not a measurement.")
@@ -407,16 +482,17 @@ else:
 
     if rows:
         df = pd.DataFrame([{
-            "Time": r["ts"][5:16], "Requester": r["requester"], "Role": r["role"], "Question": r["question"],
+            "Time": r["ts"][5:16], "Requester": f"{r['requester']} · {r['role']}", "Question": r["question"],
             "Setup": f"{MODEL_ONLY.get(r['setup'], r['setup'])} ({r['setup']})", "Action": r["action"], "Status": r["status"],
-            "Reviewed by": r["approved_by"] or "", "Baseline (S1)": baseline_label(r),
+            "Reviewed by": (r["approved_by"] or "").split("@")[0], "Baseline (S1)": baseline_label(r),
         } for r in rows])
         cfg = st.column_config
+        # Widths sum to ~990 px so every column fits the content area at 1440 px with the sidebar open.
         st.dataframe(df, width="stretch", hide_index=True, column_config={
-            "Time": cfg.TextColumn(width=95), "Requester": cfg.TextColumn(width=125), "Role": cfg.TextColumn(width=60),
-            "Question": cfg.TextColumn(width=250), "Setup": cfg.TextColumn(width=190), "Action": cfg.TextColumn(width=60),
-            "Status": cfg.TextColumn(width=130), "Reviewed by": cfg.TextColumn(width=135),
-            "Baseline (S1)": cfg.TextColumn(width=150, help="Baseline result on the same ticket (compare mode)"),
+            "Time": cfg.TextColumn(width=85), "Requester": cfg.TextColumn("Requester · role", width=185),
+            "Question": cfg.TextColumn(width=190), "Setup": cfg.TextColumn(width=170), "Action": cfg.TextColumn(width=60),
+            "Status": cfg.TextColumn(width=115), "Reviewed by": cfg.TextColumn(width=85),
+            "Baseline (S1)": cfg.TextColumn(width=100, help="Baseline result on the same ticket (compare mode)"),
         })
         st.caption("In compare mode the row is the QueryForge answer (GLM 5.3 Flash + harness) and the baseline "
                    "(GLM 5.3 Flash, S1) result is stored on the same row.")
