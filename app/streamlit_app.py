@@ -19,6 +19,7 @@ from contracts import AgentResponse  # noqa: E402
 CACHE = ROOT / "app" / "demo_cache.json"  # cached demo answers so the video doesn't depend on wifi
 SETUP_NAMES = {"S1": "Baseline (S1)", "S4": "QueryForge harness (S4)", "S5H": "QueryForge fine-tuned + harness (S5H)",
                "S6": "QueryForge router (S6)", "S2": "Nemotron Ultra (S2)"}
+ALL_SETUP_NAMES = {"S0": "Schema only (S0)", "S5": "Fine-tuned (S5)", **SETUP_NAMES}
 MODEL_NAMES = {
     CFG["models"]["small"]["id"]: "GLM 5.3 Flash",
     CFG["models"]["large"]["id"]: "NVIDIA Nemotron 3 Ultra",
@@ -195,13 +196,64 @@ if page == "Ask":
 
 elif page == "Benchmark":
     st.title("Benchmark")
-    md = ROOT / "eval" / "results.md"
-    if md.exists():
-        st.markdown(md.read_text())
-    for name in ["ladder", "significance", "intervals", "tradeoff", "seen_unseen"]:
+    st.caption("Frozen test set (416 items) + 30 hand-written questions. Paired comparisons on the same items; "
+               "McNemar p and 95% cluster-bootstrap intervals from eval/stats.py.")
+    summary_path = ROOT / "eval" / "summary.json"
+    summary = json.loads(summary_path.read_text()) if summary_path.exists() else None
+    if summary:
+        stats, summ = summary["stats_vs_S1"], summary["summaries"]
+        s4 = stats["S4"]["answer_combined"]
+        s4_s2 = stats["S4_vs_S2"]["answer_combined"]
+        cost = {s: summ[s]["combined"]["cost_per_1k"] for s in ("S1", "S4", "S2")}
+        # Business math from the README: 200 tickets/month x 90% resolved x 25 min saved x $54.13/h (BLS 2024)
+        tickets, resolved, minutes_saved, wage = 200, 0.9, 30 - 5, 54.13
+        savings = tickets * resolved * minutes_saved / 60 * wage
+        c = st.columns(4)
+        c[0].metric("Accuracy: Baseline → QueryForge", f"{100 * s4['base_acc']:.1f}% → {100 * s4['new_acc']:.1f}%",
+                    f"{100 * s4['gap']:+.1f} pts · p = {s4['p_value']:.4f}")
+        c[1].metric("QueryForge vs Nemotron Ultra", f"{100 * s4_s2['gap']:+.1f} pts",
+                    f"{100 * s4_s2['base_acc']:.1f}% → {100 * s4_s2['new_acc']:.1f}% · p < 0.001"
+                    if s4_s2["p_value"] < 0.001 else f"p = {s4_s2['p_value']:.3f}")
+        c[2].metric("Cost per 1k tickets (QueryForge)", f"${cost['S4']:.2f}",
+                    f"S1 ${cost['S1']:.2f} · S2 ${cost['S2']:.2f}", delta_color="off")
+        c[3].metric("Est. monthly savings", f"~${round(savings, -1):,.0f}",
+                    f"{tickets} tickets × {int(resolved * 100)}% × {minutes_saved} min × ${wage}/h", delta_color="off")
+        st.caption(f"Accuracy on {s4['n']} answer items (test + hand-written), 95% CI for the S4 gain "
+                   f"[{100 * s4['ci95'][0]:+.1f}, {100 * s4['ci95'][1]:+.1f}] pts. Savings are an estimate from stated "
+                   "assumptions (see README), not a measurement.")
+        st.divider()
+
+    for name, title in [("ladder", "Accuracy by setup"), ("significance", "Disagreements with the baseline"),
+                        ("intervals", "Gap vs baseline with 95% interval"), ("tradeoff", "Quality vs cost"),
+                        ("seen_unseen", "Seen vs held-out templates vs hand-written")]:
         p = ROOT / "eval" / "figures" / f"{name}.png"
         if p.exists():
+            st.subheader(title)
             st.image(str(p), width="stretch")
+
+    if summary:
+        st.divider()
+        st.subheader("Hand-written questions (n = 30)")
+        st.caption("Paired against the S1 baseline on the same 30 questions. n = 30 is small: treat these as directional.")
+        hw_rows = []
+        for s in ["S0", "S1", "S2", "S4", "S5", "S5H", "S6"]:
+            hw = summ.get(s, {}).get("handwritten")
+            if not hw:
+                continue
+            v = stats.get(s, {}).get("answer_handwritten") if s != "S1" else None
+            hw_rows.append({
+                "Setup": ALL_SETUP_NAMES[s],
+                "Accuracy": f"{100 * hw['exec_accuracy']:.1f}%",
+                "Only this setup right / only S1 right": "baseline" if s == "S1" else
+                f"{v['only_new_right']} / {v['only_base_right']}",
+                "McNemar p": "-" if s == "S1" else f"{v['p_value']:.3f}",
+                "Verdict": "baseline" if s == "S1" else v["verdict"],
+            })
+        st.dataframe(pd.DataFrame(hw_rows), width="stretch", hide_index=True)
+        with st.expander("Full results tables"):
+            md = ROOT / "eval" / "results.md"
+            if md.exists():
+                st.markdown(md.read_text())
 
 else:
     st.title("Audit log")
