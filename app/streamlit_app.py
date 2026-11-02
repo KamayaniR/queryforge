@@ -287,9 +287,13 @@ elif page == "Benchmark":
         tickets, resolved, minutes_saved, wage = 200, 0.9, 30 - 5, 54.13
         savings = tickets * resolved * minutes_saved / 60 * wage
         c = st.columns(4)
+        # Gaps shown as the difference of the displayed 1-decimal accuracies (same rule as eval/report.py)
+        def gap_pts(v):
+            return round(round(100 * v["new_acc"], 1) - round(100 * v["base_acc"], 1), 1)
+
         c[0].metric("Accuracy: Baseline → QueryForge", f"{100 * s4['base_acc']:.1f}% → {100 * s4['new_acc']:.1f}%",
-                    f"{100 * s4['gap']:+.1f} pts · p = {s4['p_value']:.4f}")
-        c[1].metric("QueryForge vs Nemotron Ultra", f"{100 * s4_s2['gap']:+.1f} pts",
+                    f"{gap_pts(s4):+.1f} pts · p = {s4['p_value']:.4f}")
+        c[1].metric("QueryForge vs Nemotron Ultra", f"{gap_pts(s4_s2):+.1f} pts",
                     f"{100 * s4_s2['base_acc']:.1f}% → {100 * s4_s2['new_acc']:.1f}% · p < 0.001"
                     if s4_s2["p_value"] < 0.001 else f"p = {s4_s2['p_value']:.3f}")
         c[2].metric("Cost per 1k tickets (QueryForge)", f"${cost['S4']:.2f}",

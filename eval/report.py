@@ -45,11 +45,19 @@ def setup_summary(setup):
             continue
         rows = list(data.values())
         s = summarize(rows)
+        # Unrounded accuracies: every display rounds once, to 1 decimal (summarize() pre-rounds to 4 dp).
+        s["exec_accuracy"] = acc(rows, ANSWER)
+        s["behavior_accuracy"] = acc(rows, lambda r: not ANSWER(r))
         s["seen_acc"] = acc(rows, lambda r: r["seen_template"] is True)
         s["unseen_acc"] = acc(rows, lambda r: r["seen_template"] is False)
         s["by_category"] = {c: acc(rows, lambda r, c=c: r["category"] == c) for c in CATS}
         out[name] = s
     return out
+
+
+def gap_pts(new, base):
+    """Displayed gap = difference of the displayed (1-decimal) accuracies, so the numbers always add up."""
+    return round(round(100 * new, 1) - round(100 * base, 1), 1)
 
 
 def fmt(x, pct=True):
@@ -96,11 +104,11 @@ def main():
     md = [f"### Headline: {LABELS[best]} vs S1 baseline (combined test + hand-written)\n",
           "| Metric | S1 baseline | Best | Gain |", "|---|---|---|---|"]
     for name, x, y, pct in headline:
-        gain = None if y is None or x is None else y - x
-        g = "-" if gain is None else (f"{100 * gain:+.1f} pts" if pct else f"{gain:+.3f}" if isinstance(gain, float) else f"{gain:+d}")
+        gain = None if y is None or x is None else (gap_pts(y, x) if pct else y - x)
+        g = "-" if gain is None else (f"{gain:+.1f} pts" if pct else f"{gain:+.3f}" if isinstance(gain, float) else f"{gain:+d}")
         md.append(f"| {name} | {fmt(x, pct)} | {fmt(y, pct)} | {g} |")
     st = stats[best]["answer_combined"]
-    md.append(f"\nAccuracy gap {100 * st['gap']:+.1f} pts, 95% cluster-bootstrap CI [{100 * st['ci95'][0]:+.1f}, "
+    md.append(f"\nAccuracy gap {gap_pts(st['new_acc'], st['base_acc']):+.1f} pts, 95% cluster-bootstrap CI [{100 * st['ci95'][0]:+.1f}, "
               f"{100 * st['ci95'][1]:+.1f}], McNemar p = {st['p_value']:.4f} ({st['only_new_right']} items only {best} "
               f"got right vs {st['only_base_right']} only S1 got right) -> **{st['verdict']}**.\n")
 
@@ -111,7 +119,7 @@ def main():
     for s in present:
         c, t, h = summ[s].get("combined", {}), summ[s].get("test", {}), summ[s].get("handwritten", {})
         v = stats.get(s, {}).get("answer_combined")
-        vs = "baseline" if s == "S1" else (f"{100 * v['gap']:+.1f} pts, p={v['p_value']:.3f}, {v['verdict']} (n={v['n']})" if v else "-")
+        vs = "baseline" if s == "S1" else (f"{gap_pts(v['new_acc'], v['base_acc']):+.1f} pts, p={v['p_value']:.3f}, {v['verdict']} (n={v['n']})" if v else "-")
         md.append(f"| {LABELS[s]} | {t.get('n', 0)} / {h.get('n', 0)} | {fmt(t.get('exec_accuracy'))} | {fmt(h.get('exec_accuracy'))} | "
                   f"{fmt(c.get('exec_accuracy'))} | {fmt(c.get('seen_acc'))} | {fmt(c.get('unseen_acc'))} | {fmt(c.get('behavior_accuracy'))} | "
                   f"{c.get('p50_latency_ms')} | {c.get('cost_per_1k'):.3f} | {vs} |")
@@ -120,7 +128,7 @@ def main():
     def cell(v):
         if not v:
             return "-"
-        return (f"{100 * v['base_acc']:.1f} → {100 * v['new_acc']:.1f} ({100 * v['gap']:+.1f}; "
+        return (f"{100 * v['base_acc']:.1f} → {100 * v['new_acc']:.1f} ({gap_pts(v['new_acc'], v['base_acc']):+.1f}; "
                 f"{v['only_new_right']}/{v['only_base_right']}; p={v['p_value']:.3g}; {v['verdict']}) n={v['n']}")
     md += ["\n### Paired vs S1 on the same items (S1 acc → setup acc (gap; only-setup-right/only-S1-right; McNemar p; verdict) n)\n",
            "| Setup | Seen templates | Held-out templates | Hand-written | Behavior (clarify/refuse) |", "|---|---|---|---|---|"]

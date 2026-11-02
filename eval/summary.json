@@ -4,7 +4,7 @@
   "S0": {
    "test": {
     "n": 416,
-    "exec_accuracy": 0.5109,
+    "exec_accuracy": 0.5109289617486339,
     "behavior_accuracy": 0.92,
     "false_clarify_rate": 0.0929,
     "p50_latency_ms": 3837,
@@ -54,7 +54,7 @@
    },
    "combined": {
     "n": 446,
-    "exec_accuracy": 0.5101,
+    "exec_accuracy": 0.51010101010101,
     "behavior_accuracy": 0.92,
     "false_clarify_rate": 0.0934,
     "p50_latency_ms": 3867,
@@ -81,7 +81,7 @@
   "S1": {
    "test": {
     "n": 416,
-    "exec_accuracy": 0.9126,
+    "exec_accuracy": 0.912568306010929,
     "behavior_accuracy": 0.92,
     "false_clarify_rate": 0.0027,
     "p50_latency_ms": 3120,
@@ -106,7 +106,7 @@
    },
    "handwritten": {
     "n": 30,
-    "exec_accuracy": 0.8333,
+    "exec_accuracy": 0.8333333333333334,
     "behavior_accuracy": null,
     "false_clarify_rate": 0.0,
     "p50_latency_ms": 3666,
@@ -130,7 +130,7 @@
    },
    "combined": {
     "n": 446,
-    "exec_accuracy": 0.9066,
+    "exec_accuracy": 0.9065656565656566,
     "behavior_accuracy": 0.92,
     "false_clarify_rate": 0.0025,
     "p50_latency_ms": 3143,
@@ -157,7 +157,7 @@
   "S2": {
    "test": {
     "n": 416,
-    "exec_accuracy": 0.8306,
+    "exec_accuracy": 0.8306010928961749,
     "behavior_accuracy": 0.98,
     "false_clarify_rate": 0.0246,
     "p50_latency_ms": 7506,
@@ -210,7 +210,7 @@
    },
    "combined": {
     "n": 446,
-    "exec_accuracy": 0.8283,
+    "exec_accuracy": 0.8282828282828283,
     "behavior_accuracy": 0.98,
     "false_clarify_rate": 0.0278,
     "p50_latency_ms": 7499,
@@ -240,7 +240,7 @@
   "S4": {
    "test": {
     "n": 416,
-    "exec_accuracy": 0.9536,
+    "exec_accuracy": 0.953551912568306,
     "behavior_accuracy": 0.92,
     "false_clarify_rate": 0.0082,
     "p50_latency_ms": 3188,
@@ -289,7 +289,7 @@
    },
    "combined": {
     "n": 446,
-    "exec_accuracy": 0.9495,
+    "exec_accuracy": 0.9494949494949495,
     "behavior_accuracy": 0.92,
     "false_clarify_rate": 0.0076,
     "p50_latency_ms": 3240,
@@ -316,7 +316,7 @@
   "S5": {
    "test": {
     "n": 416,
-    "exec_accuracy": 0.9891,
+    "exec_accuracy": 0.9890710382513661,
     "behavior_accuracy": 1.0,
     "false_clarify_rate": 0.0055,
     "p50_latency_ms": 3929,
@@ -366,7 +366,7 @@
    },
    "combined": {
     "n": 446,
-    "exec_accuracy": 0.9672,
+    "exec_accuracy": 0.9671717171717171,
     "behavior_accuracy": 1.0,
     "false_clarify_rate": 0.0076,
     "p50_latency_ms": 4008,
@@ -393,7 +393,7 @@
   "S5H": {
    "handwritten": {
     "n": 30,
-    "exec_accuracy": 0.7333,
+    "exec_accuracy": 0.7333333333333333,
     "behavior_accuracy": null,
     "false_clarify_rate": 0.0,
     "p50_latency_ms": 46611,
@@ -417,7 +417,7 @@
    },
    "combined": {
     "n": 30,
-    "exec_accuracy": 0.7333,
+    "exec_accuracy": 0.7333333333333333,
     "behavior_accuracy": null,
     "false_clarify_rate": 0.0,
     "p50_latency_ms": 46611,
@@ -443,7 +443,7 @@
   "S6": {
    "test": {
     "n": 416,
-    "exec_accuracy": 0.9454,
+    "exec_accuracy": 0.9453551912568307,
     "behavior_accuracy": 0.9,
     "false_clarify_rate": 0.0055,
     "p50_latency_ms": 3065,
@@ -492,7 +492,7 @@
    },
    "combined": {
     "n": 446,
-    "exec_accuracy": 0.9419,
+    "exec_accuracy": 0.9419191919191919,
     "behavior_accuracy": 0.9,
     "false_clarify_rate": 0.0051,
     "p50_latency_ms": 3069,

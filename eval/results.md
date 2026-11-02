@@ -2,22 +2,22 @@
 
 | Metric | S1 baseline | Best | Gain |
 |---|---|---|---|
-| Execution accuracy (answer items) | 90.7% | 96.7% | +6.1 pts |
+| Execution accuracy (answer items) | 90.7% | 96.7% | +6.0 pts |
 | Behavior accuracy (clarify/refuse) | 92.0% | 100.0% | +8.0 pts |
 | Cost per 1k tickets (USD) | 0.4674 | 0.2907 | -0.177 |
 | p50 latency (ms) | 3143 | 4008 | +865 |
 
-Accuracy gap +6.1 pts, 95% cluster-bootstrap CI [+1.8, +11.0], McNemar p = 0.0001 (31 items only S5 got right vs 7 only S1 got right) -> **real gain**.
+Accuracy gap +6.0 pts, 95% cluster-bootstrap CI [+1.8, +11.0], McNemar p = 0.0001 (31 items only S5 got right vs 7 only S1 got right) -> **real gain**.
 
 ### All setups
 
 | Setup | Items run (test / hw) | Test acc | Hand-written acc | Combined acc | Seen tmpl | Unseen tmpl | Behavior | p50 ms | $/1k tickets | vs S1, paired on same answer items |
 |---|---|---|---|---|---|---|---|---|---|---|
-| S0 small, schema only | 416 / 30 | 51.1% | 50.0% | 51.0% | 45.1% | 60.7% | 92.0% | 3867 | 0.383 | -39.6 pts, p=0.000, real loss (n=396) |
+| S0 small, schema only | 416 / 30 | 51.1% | 50.0% | 51.0% | 45.1% | 60.7% | 92.0% | 3867 | 0.383 | -39.7 pts, p=0.000, real loss (n=396) |
 | S1 baseline (small + dictionary) | 416 / 30 | 91.3% | 83.3% | 90.7% | 88.1% | 96.4% | 92.0% | 3143 | 0.467 | baseline |
-| S2 Nemotron Ultra | 416 / 30 | 83.1% | 80.0% | 82.8% | 76.1% | 94.3% | 98.0% | 7499 | 2.597 | -7.8 pts, p=0.000, real loss (n=396) |
-| S4 small + harness | 416 / 30 | 95.4% | 90.0% | 95.0% | 92.9% | 99.3% | 92.0% | 3240 | 0.523 | +4.3 pts, p=0.002, real gain (n=396) |
-| S5 fine-tuned | 416 / 30 | 98.9% | 70.0% | 96.7% | 98.7% | 99.3% | 100.0% | 4008 | 0.291 | +6.1 pts, p=0.000, real gain (n=396) |
+| S2 Nemotron Ultra | 416 / 30 | 83.1% | 80.0% | 82.8% | 76.1% | 94.3% | 98.0% | 7499 | 2.597 | -7.9 pts, p=0.000, real loss (n=396) |
+| S4 small + harness | 416 / 30 | 95.4% | 90.0% | 94.9% | 92.9% | 99.3% | 92.0% | 3240 | 0.523 | +4.2 pts, p=0.002, real gain (n=396) |
+| S5 fine-tuned | 416 / 30 | 98.9% | 70.0% | 96.7% | 98.7% | 99.3% | 100.0% | 4008 | 0.291 | +6.0 pts, p=0.000, real gain (n=396) |
 | S5H fine-tuned + harness | 0 / 30 | - | 73.3% | 73.3% | - | - | - | 46611 | 0.393 | -10.0 pts, p=0.375, could be luck (n=30) |
 | S6 router (S4 -> Ultra) | 416 / 30 | 94.5% | 90.0% | 94.2% | 91.2% | 100.0% | 90.0% | 3069 | 0.542 | +3.5 pts, p=0.009, real gain (n=396) |
 
@@ -25,9 +25,9 @@ Accuracy gap +6.1 pts, 95% cluster-bootstrap CI [+1.8, +11.0], McNemar p = 0.000
 
 | Setup | Seen templates | Held-out templates | Hand-written | Behavior (clarify/refuse) |
 |---|---|---|---|---|
-| S0 | 88.1 → 45.1 (-42.9; 12/109; p=9.87e-21; real loss) n=226 | 96.4 → 60.7 (-35.7; 1/51; p=2.35e-14; real loss) n=140 | 83.3 → 50.0 (-33.3; 0/10; p=0.00195; real loss) n=30 | 92.0 → 92.0 (+0.0; 1/1; p=1; could be luck) n=50 |
-| S2 | 88.1 → 76.1 (-11.9; 10/37; p=9.85e-05; real loss) n=226 | 96.4 → 94.3 (-2.1; 2/5; p=0.453; could be luck) n=140 | 83.3 → 80.0 (-3.3; 1/2; p=1; could be luck) n=30 | 92.0 → 98.0 (+6.0; 3/0; p=0.25; could be luck) n=50 |
-| S4 | 88.1 → 92.9 (+4.9; 16/5; p=0.0266; real gain) n=226 | 96.4 → 99.3 (+2.9; 4/0; p=0.125; could be luck) n=140 | 83.3 → 90.0 (+6.7; 2/0; p=0.5; could be luck) n=30 | 92.0 → 92.0 (+0.0; 0/0; p=1; could be luck) n=50 |
+| S0 | 88.1 → 45.1 (-43.0; 12/109; p=9.87e-21; real loss) n=226 | 96.4 → 60.7 (-35.7; 1/51; p=2.35e-14; real loss) n=140 | 83.3 → 50.0 (-33.3; 0/10; p=0.00195; real loss) n=30 | 92.0 → 92.0 (+0.0; 1/1; p=1; could be luck) n=50 |
+| S2 | 88.1 → 76.1 (-12.0; 10/37; p=9.85e-05; real loss) n=226 | 96.4 → 94.3 (-2.1; 2/5; p=0.453; could be luck) n=140 | 83.3 → 80.0 (-3.3; 1/2; p=1; could be luck) n=30 | 92.0 → 98.0 (+6.0; 3/0; p=0.25; could be luck) n=50 |
+| S4 | 88.1 → 92.9 (+4.8; 16/5; p=0.0266; real gain) n=226 | 96.4 → 99.3 (+2.9; 4/0; p=0.125; could be luck) n=140 | 83.3 → 90.0 (+6.7; 2/0; p=0.5; could be luck) n=30 | 92.0 → 92.0 (+0.0; 0/0; p=1; could be luck) n=50 |
 | S5 | 88.1 → 98.7 (+10.6; 25/1; p=8.05e-07; real gain) n=226 | 96.4 → 99.3 (+2.9; 5/1; p=0.219; could be luck) n=140 | 83.3 → 70.0 (-13.3; 1/5; p=0.219; could be luck) n=30 | 92.0 → 100.0 (+8.0; 4/0; p=0.125; could be luck) n=50 |
 | S5H | - | - | 83.3 → 73.3 (-10.0; 1/4; p=0.375; could be luck) n=30 | - |
 | S6 | 88.1 → 91.2 (+3.1; 13/6; p=0.167; could be luck) n=226 | 96.4 → 100.0 (+3.6; 5/0; p=0.0625; could be luck) n=140 | 83.3 → 90.0 (+6.7; 2/0; p=0.5; could be luck) n=30 | 92.0 → 90.0 (-2.0; 0/1; p=1; could be luck) n=50 |

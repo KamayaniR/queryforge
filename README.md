@@ -25,22 +25,22 @@ ticket ─► pre-filter ─► model writes SQL ─► safety check ─► read
 
 | Metric | S1 baseline | Best | Gain |
 |---|---|---|---|
-| Execution accuracy (answer items) | 90.7% | 96.7% | +6.1 pts |
+| Execution accuracy (answer items) | 90.7% | 96.7% | +6.0 pts |
 | Behavior accuracy (clarify/refuse) | 92.0% | 100.0% | +8.0 pts |
 | Cost per 1k tickets (USD) | 0.4674 | 0.2907 | -0.177 |
 | p50 latency (ms) | 3143 | 4008 | +865 |
 
-Accuracy gap +6.1 pts, 95% cluster-bootstrap CI [+1.8, +11.0], McNemar p = 0.0001 (31 items only S5 got right vs 7 only S1 got right) -> **real gain**.
+Accuracy gap +6.0 pts, 95% cluster-bootstrap CI [+1.8, +11.0], McNemar p = 0.0001 (31 items only S5 got right vs 7 only S1 got right) -> **real gain**.
 
 ### All setups
 
 | Setup | Items run (test / hw) | Test acc | Hand-written acc | Combined acc | Seen tmpl | Unseen tmpl | Behavior | p50 ms | $/1k tickets | vs S1, paired on same answer items |
 |---|---|---|---|---|---|---|---|---|---|---|
-| S0 small, schema only | 416 / 30 | 51.1% | 50.0% | 51.0% | 45.1% | 60.7% | 92.0% | 3867 | 0.383 | -39.6 pts, p=0.000, real loss (n=396) |
+| S0 small, schema only | 416 / 30 | 51.1% | 50.0% | 51.0% | 45.1% | 60.7% | 92.0% | 3867 | 0.383 | -39.7 pts, p=0.000, real loss (n=396) |
 | S1 baseline (small + dictionary) | 416 / 30 | 91.3% | 83.3% | 90.7% | 88.1% | 96.4% | 92.0% | 3143 | 0.467 | baseline |
-| S2 Nemotron Ultra | 416 / 30 | 83.1% | 80.0% | 82.8% | 76.1% | 94.3% | 98.0% | 7499 | 2.597 | -7.8 pts, p=0.000, real loss (n=396) |
-| S4 small + harness | 416 / 30 | 95.4% | 90.0% | 95.0% | 92.9% | 99.3% | 92.0% | 3240 | 0.523 | +4.3 pts, p=0.002, real gain (n=396) |
-| S5 fine-tuned | 416 / 30 | 98.9% | 70.0% | 96.7% | 98.7% | 99.3% | 100.0% | 4008 | 0.291 | +6.1 pts, p=0.000, real gain (n=396) |
+| S2 Nemotron Ultra | 416 / 30 | 83.1% | 80.0% | 82.8% | 76.1% | 94.3% | 98.0% | 7499 | 2.597 | -7.9 pts, p=0.000, real loss (n=396) |
+| S4 small + harness | 416 / 30 | 95.4% | 90.0% | 94.9% | 92.9% | 99.3% | 92.0% | 3240 | 0.523 | +4.2 pts, p=0.002, real gain (n=396) |
+| S5 fine-tuned | 416 / 30 | 98.9% | 70.0% | 96.7% | 98.7% | 99.3% | 100.0% | 4008 | 0.291 | +6.0 pts, p=0.000, real gain (n=396) |
 | S5H fine-tuned + harness | 0 / 30 | - | 73.3% | 73.3% | - | - | - | 46611 | 0.393 | -10.0 pts, p=0.375, could be luck (n=30) |
 | S6 router (S4 -> Ultra) | 416 / 30 | 94.5% | 90.0% | 94.2% | 91.2% | 100.0% | 90.0% | 3069 | 0.542 | +3.5 pts, p=0.009, real gain (n=396) |
 
@@ -48,9 +48,9 @@ Accuracy gap +6.1 pts, 95% cluster-bootstrap CI [+1.8, +11.0], McNemar p = 0.000
 
 | Setup | Seen templates | Held-out templates | Hand-written | Behavior (clarify/refuse) |
 |---|---|---|---|---|
-| S0 | 88.1 → 45.1 (-42.9; 12/109; p=9.87e-21; real loss) n=226 | 96.4 → 60.7 (-35.7; 1/51; p=2.35e-14; real loss) n=140 | 83.3 → 50.0 (-33.3; 0/10; p=0.00195; real loss) n=30 | 92.0 → 92.0 (+0.0; 1/1; p=1; could be luck) n=50 |
-| S2 | 88.1 → 76.1 (-11.9; 10/37; p=9.85e-05; real loss) n=226 | 96.4 → 94.3 (-2.1; 2/5; p=0.453; could be luck) n=140 | 83.3 → 80.0 (-3.3; 1/2; p=1; could be luck) n=30 | 92.0 → 98.0 (+6.0; 3/0; p=0.25; could be luck) n=50 |
-| S4 | 88.1 → 92.9 (+4.9; 16/5; p=0.0266; real gain) n=226 | 96.4 → 99.3 (+2.9; 4/0; p=0.125; could be luck) n=140 | 83.3 → 90.0 (+6.7; 2/0; p=0.5; could be luck) n=30 | 92.0 → 92.0 (+0.0; 0/0; p=1; could be luck) n=50 |
+| S0 | 88.1 → 45.1 (-43.0; 12/109; p=9.87e-21; real loss) n=226 | 96.4 → 60.7 (-35.7; 1/51; p=2.35e-14; real loss) n=140 | 83.3 → 50.0 (-33.3; 0/10; p=0.00195; real loss) n=30 | 92.0 → 92.0 (+0.0; 1/1; p=1; could be luck) n=50 |
+| S2 | 88.1 → 76.1 (-12.0; 10/37; p=9.85e-05; real loss) n=226 | 96.4 → 94.3 (-2.1; 2/5; p=0.453; could be luck) n=140 | 83.3 → 80.0 (-3.3; 1/2; p=1; could be luck) n=30 | 92.0 → 98.0 (+6.0; 3/0; p=0.25; could be luck) n=50 |
+| S4 | 88.1 → 92.9 (+4.8; 16/5; p=0.0266; real gain) n=226 | 96.4 → 99.3 (+2.9; 4/0; p=0.125; could be luck) n=140 | 83.3 → 90.0 (+6.7; 2/0; p=0.5; could be luck) n=30 | 92.0 → 92.0 (+0.0; 0/0; p=1; could be luck) n=50 |
 | S5 | 88.1 → 98.7 (+10.6; 25/1; p=8.05e-07; real gain) n=226 | 96.4 → 99.3 (+2.9; 5/1; p=0.219; could be luck) n=140 | 83.3 → 70.0 (-13.3; 1/5; p=0.219; could be luck) n=30 | 92.0 → 100.0 (+8.0; 4/0; p=0.125; could be luck) n=50 |
 | S5H | - | - | 83.3 → 73.3 (-10.0; 1/4; p=0.375; could be luck) n=30 | - |
 | S6 | 88.1 → 91.2 (+3.1; 13/6; p=0.167; could be luck) n=226 | 96.4 → 100.0 (+3.6; 5/0; p=0.0625; could be luck) n=140 | 83.3 → 90.0 (+6.7; 2/0; p=0.5; could be luck) n=30 | 92.0 → 90.0 (-2.0; 0/1; p=1; could be luck) n=50 |
@@ -82,18 +82,20 @@ Accuracy gap +6.1 pts, 95% cluster-bootstrap CI [+1.8, +11.0], McNemar p = 0.000
 ![Quality vs cost](eval/figures/tradeoff.png)
 ![Seen vs held-out templates vs hand-written](eval/figures/seen_unseen.png)
 
+**Rounding:** accuracies are rounded once to 1 decimal. Every gap shown is the difference of those displayed values, so the numbers add up (90.7% → 94.9% = +4.2). Confidence intervals and p-values are computed on the exact, unrounded values.
+
 Per-question results for every run are committed under `eval/runs/{setup}_{test|hw}/results.jsonl`, each next to a `manifest.json` that records the full system prompt, model, settings, test-file SHA256 and git commit.
 
 ## What we found
 
 <!-- FINDINGS:START -->
 1. **The business rules are most of the value.** Adding the data dictionary to the same small model takes it from 51.0% to 90.7% (S0 → S1, p < 0.001). With the rules in the prompt, the small GLM baseline already beats Nemotron Ultra (S2: 82.8%).
-2. **The harness is a real, robust gain** (S4 vs S1: +4.3 points, McNemar p = 0.0015, 95% CI [+1.1, +7.9], 22 vs 5 discordant items).
+2. **The harness is a real, robust gain** (S4 vs S1: 90.7% → 94.9%, +4.2 points, McNemar p = 0.0015, 95% CI [+1.1, +7.9], 22 vs 5 discordant items).
    - **How it gets there:** showing the model real column values (e.g. `cool_stuff` rather than "cool stuff"), retrying SQL errors, and sanity checks.
    - **Cost:** about the same as S1 ($0.52 vs $0.47 per 1k tickets).
    - **Where it shows:** it improves or matches S1 on every slice: seen templates, held-out templates and hand-written questions.
 3. **Fine-tuning gives the best score on the frozen test, but it doesn't transfer to differently worded questions.**
-   - **Overall:** S5 scores 96.7% vs 90.7% (+6.1 points, p = 0.0001, CI [+1.8, +11.0]), at the lowest cost of any setup, $0.29 per 1k (no reasoning tokens).
+   - **Overall:** S5 scores 96.7% vs 90.7% (+6.0 points, p = 0.0001, CI [+1.8, +11.0]), at the lowest cost of any setup, $0.29 per 1k (no reasoning tokens).
    - **Held-out templates:** **no sign of memorization** (99.3% vs S1's 96.4%). But the gain there isn't significant (5 vs 1 discordant, p = 0.22), and S1 is already near the ceiling, so this **doesn't prove generalization**.
    - **Hand-written questions:** it **drops to 70.0% vs 83.3%** (1 vs 5 discordant; p = 0.22, not significant at n = 30). That points to **overfitting to the template wording and answer format**.
    - **The causes are visible in the outputs:**
@@ -125,7 +127,7 @@ Per-question results for every run are committed under `eval/runs/{setup}_{test|
 
    Of S2's 68 wrong answers, 44 are items S1 got right. Ultra does better on clarify/refuse (98% vs 92%), the one slice where its caution helps.
 
-5. **Routing to Nemotron Ultra didn't help.** S6 escalates S4's low-confidence or failed answers to Nemotron 3 Ultra. It scored 94.2%, close to S4 (95.0%), at slightly higher cost.
+5. **Routing to Nemotron Ultra didn't help.** S6 escalates S4's low-confidence or failed answers to Nemotron 3 Ultra. It scored 94.2%, close to S4 (94.9%), at slightly higher cost.
    - Nemotron 3 Ultra is the large-model reference (S2) and the escalation tier (S6) in this system.
    - Ultra on its own is better at clarify/refuse (98% vs 92%, n = 50, not significant), but worse at writing the SQL.
 6. **Recommended production setup: S4** (GLM 5.3 Flash + harness).
@@ -148,6 +150,23 @@ Per-question results for every run are committed under `eval/runs/{setup}_{test|
 - **Hand-written only:** +10.0 points, p = 0.25, not significant.
 - **Clarify/refuse:** −6.0 points, p = 0.25, not significant.
 <!-- FINDINGS:END -->
+
+## Demo
+
+`streamlit run app/streamlit_app.py` opens three pages:
+- **Ask:** a ticket form with compare mode, so the Baseline (S1) and QueryForge (S4) answer the same ticket side by side. Each answer has:
+  - a plain-English sentence, the result table, confidence, cost and latency;
+  - the SQL, in a collapsible panel;
+  - "Rules applied" chips;
+  - Approve / Flag buttons.
+
+  Five one-click example tickets cover a business rule, a trap, clarify, refuse and a multi-step question.
+- **Benchmark:** headline cards, the charts, and the hand-written results table.
+- **Audit log:** every ticket with its status (pending / approved / flagged).
+
+The example tickets use cached answers (`app/demo_cache.json`), so the demo works without network access. Every cached answer is the setup's real output, including the baseline's failures.
+
+**Demo examples were chosen to illustrate behavior; the benchmark results are the evidence.**
 
 ## Business value
 
