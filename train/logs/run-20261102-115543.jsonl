@@ -1,0 +1,23 @@
+{"event": "start", "base_model": "accounts/fireworks/models/glm-5p3-flash", "hp": {"tokenizer": "zai-org/GLM-5.3-Flash", "lora_rank": 16, "lora_alpha": 32, "learning_rate": 0.0001, "epochs": 1, "batch_size": 16, "eval_every": 20, "checkpoint_name": "qf-tuned", "price_per_m_tokens": 8.89}, "n_train": 1283, "n_val": 67, "session": "accounts/kamayanirai78-jyb1te/trainingSessions/ts-03185fcc040b4413af7968b748b60c31", "t": 1793649343.8}
+{"event": "val", "step": 0, "val_loss": 0.8216172840033699, "t": 1793649368.0}
+{"event": "train", "step": 1, "of": 81, "epoch": 0, "loss": 0.7942338310942358, "t": 1793649393.5}
+{"event": "train", "step": 2, "of": 81, "epoch": 0, "loss": 0.633077547004424, "t": 1793649427.1}
+{"event": "train", "step": 3, "of": 81, "epoch": 0, "loss": 0.36033141954195363, "t": 1793649475.0}
+{"event": "train", "step": 4, "of": 81, "epoch": 0, "loss": 0.2186229516635887, "t": 1793649491.6}
+{"event": "train", "step": 5, "of": 81, "epoch": 0, "loss": 0.25576690141006037, "t": 1793649523.9}
+{"event": "train", "step": 6, "of": 81, "epoch": 0, "loss": 0.19154806358869686, "t": 1793649564.6}
+{"event": "train", "step": 7, "of": 81, "epoch": 0, "loss": 0.15322500690477625, "t": 1793649615.6}
+{"event": "train", "step": 8, "of": 81, "epoch": 0, "loss": 0.13094113682800868, "t": 1793649640.9}
+{"event": "train", "step": 9, "of": 81, "epoch": 0, "loss": 0.10462426355245046, "t": 1793649689.4}
+{"event": "train", "step": 10, "of": 81, "epoch": 0, "loss": 0.10154686593508425, "t": 1793649721.7}
+{"event": "train", "step": 11, "of": 81, "epoch": 0, "loss": 0.07184358561573682, "t": 1793649783.7}
+{"event": "train", "step": 12, "of": 81, "epoch": 0, "loss": 0.1076644455072091, "t": 1793649816.8}
+{"event": "train", "step": 13, "of": 81, "epoch": 0, "loss": 0.056215612868952554, "t": 1793649862.6}
+{"event": "train", "step": 14, "of": 81, "epoch": 0, "loss": 0.046733292475757686, "t": 1793649897.4}
+{"event": "train", "step": 15, "of": 81, "epoch": 0, "loss": 0.06914021145352155, "t": 1793649943.1}
+{"event": "train", "step": 16, "of": 81, "epoch": 0, "loss": 0.05827842184720878, "t": 1793649980.9}
+{"event": "train", "step": 17, "of": 81, "epoch": 0, "loss": 0.0223988701618313, "t": 1793650035.6}
+{"event": "train", "step": 18, "of": 81, "epoch": 0, "loss": 0.042844059913670095, "t": 1793650111.1}
+{"event": "train", "step": 19, "of": 81, "epoch": 0, "loss": 0.016605418511676445, "t": 1793650169.3}
+{"event": "train", "step": 20, "of": 81, "epoch": 0, "loss": 0.031544903625258205, "t": 1793650218.0}
+{"event": "val", "step": 20, "val_loss": 0.04428911142663581, "t": 1793650293.2}

@@ -1,0 +1,69 @@
+# All model IDs, prices, limits and paths live here. Never hardcode them.
+# Prices are USD per 1M tokens, Fireworks serverless standard tier (docs.fireworks.ai/serverless/pricing, 2026-11-02).
+
+fireworks:
+  inference_base_url: https://api.fireworks.ai/inference/v1
+  training_base_url: https://api.fireworks.ai/training/v1/serverless
+
+models:
+  small:
+    id: accounts/fireworks/models/glm-5p3-flash   # thinking-only; only serverless-trainable + serverless-LoRA option
+    price_in: 0.15
+    price_out: 0.50
+    extra_body: {}
+  large:
+    id: accounts/fireworks/models/nemotron-3-ultra-nvfp4
+    price_in: 0.60
+    price_out: 2.40
+    extra_body: {}           # same settings as small for a fair reference (reasoning on)
+  tuned:
+    id: null                 # filled after fine-tune (checkpoint path or deployed model id)
+    price_in: 0.15           # LoRA on glm-5p3-flash served serverless at base price (verify after deploy)
+    price_out: 0.50
+    extra_body: {}
+
+training:                  # organizers' sample settings (CLAUDE.md 11)
+  tokenizer: zai-org/GLM-5.3-Flash
+  lora_rank: 16
+  lora_alpha: 32
+  learning_rate: 0.0001
+  epochs: 1
+  batch_size: 16
+  eval_every: 20
+  checkpoint_name: qf-tuned
+  price_per_m_tokens: 8.89
+
+generation:
+  temperature: 0
+  max_tokens: 4096           # GLM always reasons; a low cap would truncate the baseline
+  request_timeout_s: 60
+  api_retries: 1
+
+limits:
+  max_concurrency: 8
+  sql_timeout_s: 10
+  row_limit: 1000
+  max_sql_retries: 2
+  budget_usd_per_run: 5.0
+
+paths:
+  raw_olist: data/raw/olist
+  olist_db: data/olist.duckdb
+  dictionary: docs/olist_dictionary.md
+  bench_out: bench/out
+  runs: eval/runs
+  figures: eval/figures
+  audit_log: app/audit_log.sqlite
+
+seed: 42
+as_of_date: "2018-08-31"
+
+# Setups: same harness code, different flags (CLAUDE.md section 6).
+setups:
+  S0:  {model: small, dictionary: false, harness: false, router: false}
+  S1:  {model: small, dictionary: true,  harness: false, router: false}
+  S2:  {model: large, dictionary: true,  harness: false, router: false}
+  S4:  {model: small, dictionary: true,  harness: true,  router: false}
+  S5:  {model: tuned, dictionary: true,  harness: false, router: false}
+  S5H: {model: tuned, dictionary: true,  harness: true,  router: false}
+  S6:  {model: small, dictionary: true,  harness: true,  router: true, base: S4, escalate_to: S2}  # base -> best small setup once known

@@ -1,0 +1,12 @@
+[
+ "active_sellers_state",
+ "avg_paid_per_order_month",
+ "late_rate_region_month",
+ "low_rating_count_month",
+ "low_rating_share_category",
+ "multi_seller_orders_month",
+ "orders_month",
+ "ptype_orders_month",
+ "relative_named_metric",
+ "top_states_customers_period"
+]

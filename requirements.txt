@@ -1,0 +1,13 @@
+duckdb==2.0.0
+sqlglot==30.27.0
+pydantic==2.14.2
+PyYAML==6.0.3
+python-dotenv==1.2.4
+openai==3.42.1
+numpy==2.5.4
+scipy==1.18.1
+plotly==7.1.0
+streamlit==1.66.1
+pytest==9.2.0
+fireworks-ai[training]==1.2.30
+kaleido==1.5.0

@@ -1,0 +1,11 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+data/raw/
+data/*.duckdb
+data/*.duckdb.wal
+app/audit_log.sqlite
+eval/runs/*/cache/
+.DS_Store
