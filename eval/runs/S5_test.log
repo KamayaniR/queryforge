@@ -2,3 +2,32 @@ S5_test: 416 to run (0 already done), budget $5.0
 prefill_queue_duration is unavailable; AdaptiveConcurrencyController is using HTTP 429/503 and transport-error congestion signals instead
   25/416  $0.007  139s
   50/416  $0.015  253s
+  75/416  $0.022  502s
+  100/416  $0.029  735s
+  125/416  $0.036  856s
+  150/416  $0.043  870s
+  175/416  $0.051  879s
+  200/416  $0.058  891s
+  225/416  $0.065  903s
+  250/416  $0.072  915s
+  275/416  $0.080  926s
+  300/416  $0.087  938s
+  325/416  $0.094  950s
+  350/416  $0.101  963s
+  375/416  $0.109  974s
+  400/416  $0.116  986s
+  416/416  $0.121  992s
+{
+ "n": 416,
+ "exec_accuracy": 0.9891,
+ "behavior_accuracy": 1.0,
+ "false_clarify_rate": 0.0055,
+ "p50_latency_ms": 3929,
+ "p95_latency_ms": 109607,
+ "cost_usd": 0.1207,
+ "cost_per_1k": 0.2901,
+ "failures": {
+  "wrong_action": 2,
+  "wrong_result": 2
+ }
+}

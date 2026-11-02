@@ -72,7 +72,17 @@ def main():
         stats[s] = {
             "answer_combined": compare_runs(runs_for("S1"), runs_for(s), ANSWER),
             "answer_test": compare_runs(["S1_test"], [f"{s}_test"], ANSWER),
+            "answer_seen": compare_runs(["S1_test"], [f"{s}_test"], lambda r: ANSWER(r) and r["seen_template"] is True),
+            "answer_unseen": compare_runs(["S1_test"], [f"{s}_test"], lambda r: ANSWER(r) and r["seen_template"] is False),
+            "answer_handwritten": compare_runs(["S1_hw"], [f"{s}_hw"], ANSWER),
+            "behavior_test": compare_runs(["S1_test"], [f"{s}_test"], lambda r: not ANSWER(r)),
             "all_combined": compare_runs(runs_for("S1"), runs_for(s)),
+        }
+    if "S4" in present and "S2" in present:
+        stats["S4_vs_S2"] = {
+            "answer_combined": compare_runs(runs_for("S2"), runs_for("S4"), ANSWER),
+            "answer_handwritten": compare_runs(["S2_hw"], ["S4_hw"], ANSWER),
+            "behavior_test": compare_runs(["S2_test"], ["S4_test"], lambda r: not ANSWER(r)),
         }
     small = [s for s in present if s not in ("S1", "S2", "S0")]
     best = max(small, key=lambda s: summ[s]["combined"]["exec_accuracy"]) if small else None
@@ -96,15 +106,34 @@ def main():
 
     # Summary table
     md += ["### All setups\n",
-           "| Setup | Test acc | Hand-written acc | Combined acc | Seen tmpl | Unseen tmpl | Behavior | p50 ms | $/1k tickets | vs S1 (combined) |",
-           "|---|---|---|---|---|---|---|---|---|---|"]
+           "| Setup | Items run (test / hw) | Test acc | Hand-written acc | Combined acc | Seen tmpl | Unseen tmpl | Behavior | p50 ms | $/1k tickets | vs S1, paired on same answer items |",
+           "|---|---|---|---|---|---|---|---|---|---|---|"]
     for s in present:
         c, t, h = summ[s].get("combined", {}), summ[s].get("test", {}), summ[s].get("handwritten", {})
         v = stats.get(s, {}).get("answer_combined")
-        vs = "baseline" if s == "S1" else (f"{100 * v['gap']:+.1f} pts, p={v['p_value']:.3f}, {v['verdict']}" if v else "-")
-        md.append(f"| {LABELS[s]} | {fmt(t.get('exec_accuracy'))} | {fmt(h.get('exec_accuracy'))} | {fmt(c.get('exec_accuracy'))} | "
-                  f"{fmt(c.get('seen_acc'))} | {fmt(c.get('unseen_acc'))} | {fmt(c.get('behavior_accuracy'))} | "
+        vs = "baseline" if s == "S1" else (f"{100 * v['gap']:+.1f} pts, p={v['p_value']:.3f}, {v['verdict']} (n={v['n']})" if v else "-")
+        md.append(f"| {LABELS[s]} | {t.get('n', 0)} / {h.get('n', 0)} | {fmt(t.get('exec_accuracy'))} | {fmt(h.get('exec_accuracy'))} | "
+                  f"{fmt(c.get('exec_accuracy'))} | {fmt(c.get('seen_acc'))} | {fmt(c.get('unseen_acc'))} | {fmt(c.get('behavior_accuracy'))} | "
                   f"{c.get('p50_latency_ms')} | {c.get('cost_per_1k'):.3f} | {vs} |")
+
+    # Paired comparisons vs S1 on exactly the same items, by slice
+    def cell(v):
+        if not v:
+            return "-"
+        return (f"{100 * v['base_acc']:.1f} → {100 * v['new_acc']:.1f} ({100 * v['gap']:+.1f}; "
+                f"{v['only_new_right']}/{v['only_base_right']}; p={v['p_value']:.3g}; {v['verdict']}) n={v['n']}")
+    md += ["\n### Paired vs S1 on the same items (S1 acc → setup acc (gap; only-setup-right/only-S1-right; McNemar p; verdict) n)\n",
+           "| Setup | Seen templates | Held-out templates | Hand-written | Behavior (clarify/refuse) |", "|---|---|---|---|---|"]
+    for s in [x for x in present if x != "S1"]:
+        v = stats[s]
+        md.append(f"| {s} | {cell(v['answer_seen'])} | {cell(v['answer_unseen'])} | {cell(v['answer_handwritten'])} | {cell(v['behavior_test'])} |")
+    if "S4_vs_S2" in stats:
+        v = stats["S4_vs_S2"]
+        md += ["\n### S4 vs S2 (Nemotron Ultra), paired (S2 acc → S4 acc)\n",
+               "| Slice | Result |", "|---|---|",
+               f"| Answer items, test + hand-written | {cell(v['answer_combined'])} |",
+               f"| Hand-written only | {cell(v['answer_handwritten'])} |",
+               f"| Behavior (clarify/refuse) | {cell(v['behavior_test'])} |"]
 
     # 6. Category table
     md += ["\n### Accuracy by category (combined)\n", "| Setup | " + " | ".join(CATS) + " |", "|---|" + "---|" * len(CATS)]
@@ -127,7 +156,7 @@ def main():
     save(fig, "ladder")
 
     # 3. Significance chart
-    comp = [s for s in ["S0", "S2", "S4", "S5", "S5H", "S6"] if s in stats]
+    comp = [s for s in ["S0", "S2", "S4", "S5", "S5H", "S6"] if s in stats and stats[s]["answer_combined"]]
     fig = go.Figure()
     fig.add_bar(name="only this setup right", x=comp, y=[stats[s]["answer_combined"]["only_new_right"] for s in comp],
                 marker_color="#2a9d8f")
@@ -171,6 +200,13 @@ def main():
     save(fig, "seen_unseen")
 
     json.dump({"best_setup": best, "summaries": summ, "stats_vs_S1": stats}, open(ROOT / "eval" / "summary.json", "w"), indent=1)
+    readme = ROOT / "README.md"
+    if readme.exists():
+        text = readme.read_text()
+        start, end = "<!-- RESULTS:START -->", "<!-- RESULTS:END -->"
+        if start in text and end in text:
+            head, rest = text.split(start, 1)
+            readme.write_text(head + start + "\n" + "\n".join(md) + "\n" + end + rest.split(end, 1)[1])
     print("\n".join(md))
 
 
