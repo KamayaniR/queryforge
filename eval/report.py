@@ -19,9 +19,17 @@ from eval.stats import compare_runs, load_run  # noqa: E402
 CFG = yaml.safe_load(open(ROOT / "config.yaml"))
 FIG = ROOT / CFG["paths"]["figures"]
 SETUPS = ["S0", "S1", "S2", "S4", "S5", "S5H", "S6"]
-LABELS = {"S0": "S0 small, schema only", "S1": "S1 baseline (small + dictionary)", "S2": "S2 Nemotron Ultra",
-          "S4": "S4 small + harness", "S5": "S5 fine-tuned", "S5H": "S5H fine-tuned + harness",
-          "S6": "S6 router (S4 -> Ultra)"}
+# Model name first, setup code as a tag (codes match eval/runs/ and config.yaml).
+LABELS = {"S0": "GLM 5.3 Flash, schema only (S0)", "S1": "GLM 5.3 Flash + dictionary, baseline (S1)",
+          "S2": "Nemotron 3 Ultra + dictionary (S2)", "S4": "GLM 5.3 Flash + harness (S4)",
+          "S5": "GLM 5.3 Flash fine-tuned (S5)", "S5H": "GLM 5.3 Flash fine-tuned + harness (S5H)",
+          "S6": "GLM 5.3 Flash + harness → Nemotron 3 Ultra (S6)"}
+CHART = {"S0": "GLM 5.3 Flash<br>schema only (S0)", "S1": "GLM 5.3 Flash<br>baseline (S1)",
+         "S2": "Nemotron 3 Ultra<br>(S2)", "S4": "GLM 5.3 Flash<br>+ harness (S4)",
+         "S5": "GLM 5.3 Flash<br>fine-tuned (S5)", "S5H": "GLM 5.3 Flash<br>fine-tuned + harness (S5H)",
+         "S6": "Flash + harness<br>→ Ultra router (S6)"}
+TAG = {"S0": "Flash, schema only", "S1": "Flash baseline", "S2": "Nemotron 3 Ultra", "S4": "Flash + harness",
+       "S5": "Flash fine-tuned", "S5H": "Flash FT + harness", "S6": "Flash → Ultra router"}
 CATS = ["simple", "join", "date", "business_rule", "gotcha", "clarify", "refuse"]
 COLORS = {"real gain": "#2a9d8f", "real loss": "#e76f51", "could be luck": "#9aa5b1"}
 ANSWER = lambda r: r["expected_action"] == "answer"  # noqa: E731
@@ -64,8 +72,10 @@ def fmt(x, pct=True):
     return "-" if x is None else (f"{100 * x:.1f}%" if pct else f"{x}")
 
 
-def save(fig, name):
+def save(fig, name, category_x=False):
     fig.update_layout(template="plotly_white", font=dict(size=14), margin=dict(l=60, r=30, t=70, b=60))
+    if category_x:  # two-line model-name labels, kept horizontal
+        fig.update_xaxes(tickangle=0, tickfont=dict(size=12))
     fig.write_image(FIG / f"{name}.png", width=1000, height=560, scale=2)
 
 
@@ -134,7 +144,7 @@ def main():
            "| Setup | Seen templates | Held-out templates | Hand-written | Behavior (clarify/refuse) |", "|---|---|---|---|---|"]
     for s in [x for x in present if x != "S1"]:
         v = stats[s]
-        md.append(f"| {s} | {cell(v['answer_seen'])} | {cell(v['answer_unseen'])} | {cell(v['answer_handwritten'])} | {cell(v['behavior_test'])} |")
+        md.append(f"| {LABELS[s]} | {cell(v['answer_seen'])} | {cell(v['answer_unseen'])} | {cell(v['answer_handwritten'])} | {cell(v['behavior_test'])} |")
     if "S4_vs_S2" in stats:
         v = stats["S4_vs_S2"]
         md += ["\n### S4 vs S2 (Nemotron Ultra), paired (S2 acc → S4 acc)\n",
@@ -147,35 +157,36 @@ def main():
     md += ["\n### Accuracy by category (combined)\n", "| Setup | " + " | ".join(CATS) + " |", "|---|" + "---|" * len(CATS)]
     for s in present:
         bc = summ[s]["combined"]["by_category"]
-        md.append(f"| {s} | " + " | ".join(fmt(bc[c]) for c in CATS) + " |")
+        md.append(f"| {LABELS[s]} | " + " | ".join(fmt(bc[c]) for c in CATS) + " |")
     (ROOT / "eval" / "results.md").write_text("\n".join(md) + "\n")
 
     # 2. Ladder chart
     order = [s for s in ["S0", "S1", "S4", "S5", "S5H", "S6"] if s in present]
-    fig = go.Figure(go.Bar(x=[LABELS[s] for s in order], y=[100 * summ[s]["combined"]["exec_accuracy"] for s in order],
+    fig = go.Figure(go.Bar(x=[CHART[s] for s in order], y=[100 * summ[s]["combined"]["exec_accuracy"] for s in order],
                            text=[f"{100 * summ[s]['combined']['exec_accuracy']:.1f}%" for s in order], textposition="outside",
                            marker_color=["#9aa5b1" if s in ("S0", "S1") else "#2a9d8f" for s in order]))
     if "S2" in present:
         y2 = 100 * summ["S2"]["combined"]["exec_accuracy"]
         fig.add_hline(y=y2, line_dash="dash", line_color="#264653",
-                      annotation_text=f"S2 Nemotron Ultra (large) {y2:.1f}%", annotation_position="bottom left")
+                      annotation_text=f"Nemotron 3 Ultra, large model (S2) {y2:.1f}%", annotation_position="bottom left")
     fig.update_layout(title="Execution accuracy by setup (test + hand-written, answer items)",
                       yaxis=dict(title="accuracy (%)", range=[0, 105]))
-    save(fig, "ladder")
+    save(fig, "ladder", category_x=True)
 
     # 3. Significance chart
     comp = [s for s in ["S0", "S2", "S4", "S5", "S5H", "S6"] if s in stats and stats[s]["answer_combined"]]
     fig = go.Figure()
-    fig.add_bar(name="only this setup right", x=comp, y=[stats[s]["answer_combined"]["only_new_right"] for s in comp],
-                marker_color="#2a9d8f")
-    fig.add_bar(name="only S1 right", x=comp, y=[stats[s]["answer_combined"]["only_base_right"] for s in comp],
-                marker_color="#e76f51")
+    fig.add_bar(name="only this setup right", x=[CHART[s] for s in comp],
+                y=[stats[s]["answer_combined"]["only_new_right"] for s in comp], marker_color="#2a9d8f")
+    fig.add_bar(name="only the baseline right", x=[CHART[s] for s in comp],
+                y=[stats[s]["answer_combined"]["only_base_right"] for s in comp], marker_color="#e76f51")
     for s in comp:
         v = stats[s]["answer_combined"]
-        fig.add_annotation(x=s, y=max(v["only_new_right"], v["only_base_right"]) + 4,
+        fig.add_annotation(x=CHART[s], y=max(v["only_new_right"], v["only_base_right"]) + 6,
                            text=f"{v['verdict']}<br>p={v['p_value']:.3g}", showarrow=False, font=dict(size=12))
-    fig.update_layout(title="Disagreements with the S1 baseline (McNemar)", barmode="group", yaxis_title="items")
-    save(fig, "significance")
+    fig.update_layout(title="Disagreements with the baseline, GLM 5.3 Flash (S1) — McNemar", barmode="group",
+                      yaxis_title="items")
+    save(fig, "significance", category_x=True)
 
     # 4. Interval chart
     fig = go.Figure()
@@ -185,27 +196,34 @@ def main():
                                  error_x=dict(type="data", symmetric=False, array=[100 * (v["ci95"][1] - v["gap"])],
                                               arrayminus=[100 * (v["gap"] - v["ci95"][0])]), showlegend=False))
     fig.add_vline(x=0, line_color="#264653")
-    fig.update_layout(title="Accuracy gap vs S1 with 95% cluster-bootstrap interval", xaxis_title="gap (percentage points)")
+    fig.update_layout(title="Accuracy gap vs the baseline (GLM 5.3 Flash, S1), 95% cluster-bootstrap interval",
+                      xaxis_title="gap (percentage points)")
     save(fig, "intervals")
 
     # 5. Tradeoff chart
     fig = go.Figure()
+    pos = {"S0": "top center", "S1": "bottom center", "S2": "top center", "S4": "top center", "S5": "top center",
+           "S5H": "top center", "S6": "bottom right"}
     for s in present:
         c = summ[s]["combined"]
-        fig.add_trace(go.Scatter(x=[c["cost_per_1k"]], y=[100 * c["exec_accuracy"]], mode="markers+text", text=[s],
-                                 textposition="top center", marker=dict(size=16), name=LABELS[s]))
-    fig.update_layout(title="Quality vs cost", xaxis=dict(title="USD per 1,000 tickets (log)", type="log"),
-                      yaxis_title="execution accuracy (%)")
+        fig.add_trace(go.Scatter(x=[c["cost_per_1k"]], y=[100 * c["exec_accuracy"]], mode="markers+text",
+                                 text=[f"{TAG[s]} ({s})"], textposition=pos.get(s, "top center"),
+                                 marker=dict(size=16, color="#2a9d8f" if s in ("S4", "S5", "S5H", "S6") else "#9aa5b1"
+                                             if s in ("S0", "S1") else "#264653"), name=LABELS[s], showlegend=False))
+    fig.update_layout(title="Quality vs cost (green = QueryForge setups, gray = GLM baselines)",
+                      xaxis=dict(title="USD per 1,000 tickets (log)", type="log", range=[-0.75, 0.6]),
+                      yaxis=dict(title="execution accuracy (%)", range=[45, 102]))
     save(fig, "tradeoff")
 
     # Seen vs unseen templates
     fig = go.Figure()
-    fig.add_bar(name="seen templates", x=order, y=[100 * (summ[s]["combined"]["seen_acc"] or 0) for s in order])
-    fig.add_bar(name="held-out templates", x=order, y=[100 * (summ[s]["combined"]["unseen_acc"] or 0) for s in order])
-    fig.add_bar(name="hand-written", x=order, y=[100 * (summ[s].get("handwritten", {}).get("exec_accuracy") or 0) for s in order])
+    xs = [CHART[s] for s in order]
+    fig.add_bar(name="seen templates", x=xs, y=[100 * (summ[s]["combined"]["seen_acc"] or 0) for s in order])
+    fig.add_bar(name="held-out templates", x=xs, y=[100 * (summ[s]["combined"]["unseen_acc"] or 0) for s in order])
+    fig.add_bar(name="hand-written", x=xs, y=[100 * (summ[s].get("handwritten", {}).get("exec_accuracy") or 0) for s in order])
     fig.update_layout(title="Generalization: seen vs held-out templates vs hand-written", barmode="group",
                       yaxis=dict(title="accuracy (%)", range=[0, 105]))
-    save(fig, "seen_unseen")
+    save(fig, "seen_unseen", category_x=True)
 
     json.dump({"best_setup": best, "summaries": summ, "stats_vs_S1": stats}, open(ROOT / "eval" / "summary.json", "w"), indent=1)
     readme = ROOT / "README.md"

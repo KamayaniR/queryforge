@@ -17,9 +17,16 @@ from app import audit_log  # noqa: E402
 from contracts import AgentResponse  # noqa: E402
 
 CACHE = ROOT / "app" / "demo_cache.json"  # cached demo answers so the video doesn't depend on wifi
-SETUP_NAMES = {"S1": "Baseline (S1)", "S4": "QueryForge harness (S4)", "S5H": "QueryForge fine-tuned + harness (S5H)",
-               "S6": "QueryForge router (S6)", "S2": "Nemotron Ultra (S2)"}
-ALL_SETUP_NAMES = {"S0": "Schema only (S0)", "S5": "Fine-tuned (S5)", **SETUP_NAMES}
+# Model name first, setup code as a tag (codes match eval/runs/ and config.yaml).
+SETUP_NAMES = {"S1": "Baseline · GLM 5.3 Flash (S1)", "S4": "QueryForge · GLM 5.3 Flash + harness (S4)",
+               "S5H": "QueryForge · GLM 5.3 Flash fine-tuned + harness (S5H)",
+               "S6": "QueryForge · GLM 5.3 Flash + harness → Nemotron 3 Ultra (S6)",
+               "S2": "Nemotron 3 Ultra (S2)"}
+ALL_SETUP_NAMES = {"S0": "GLM 5.3 Flash, schema only (S0)", "S5": "GLM 5.3 Flash fine-tuned (S5)", **SETUP_NAMES}
+# Compact model-only labels for narrow table columns
+MODEL_ONLY = {"S0": "GLM 5.3 Flash, schema only", "S1": "GLM 5.3 Flash", "S2": "Nemotron 3 Ultra",
+              "S4": "GLM 5.3 Flash + harness", "S5": "GLM 5.3 Flash fine-tuned", "S5H": "GLM 5.3 Flash FT + harness",
+              "S6": "GLM 5.3 Flash → Nemotron 3 Ultra"}
 MODEL_NAMES = {
     CFG["models"]["small"]["id"]: "GLM 5.3 Flash",
     CFG["models"]["large"]["id"]: "NVIDIA Nemotron 3 Ultra",
@@ -237,7 +244,8 @@ if page == "Ask":
     st.session_state.setdefault("ticket", "whats the late delivery rate by customer region for last month")
     q = st.text_area("Ticket", height=90, key="ticket")
     t1, t2 = st.columns(2)
-    compare_mode = t1.toggle("Compare Baseline (S1) vs QueryForge (S4)", value=True, key="compare")
+    compare_mode = t1.toggle("Compare Baseline (GLM 5.3 Flash) vs QueryForge (GLM 5.3 Flash + harness)",
+                             value=True, key="compare")
     use_cache = t2.toggle("Use cached demo answers", value=True)
     example_click = st.session_state.pop("auto_submit", False)
     if (st.button("Submit ticket", type="primary") or example_click) and q.strip():
@@ -306,7 +314,7 @@ elif page == "Benchmark":
 
         c[0].metric("Accuracy: Baseline → QueryForge", f"{100 * s4['base_acc']:.1f}% → {100 * s4['new_acc']:.1f}%",
                     f"{gap_pts(s4):+.1f} pts · p = {s4['p_value']:.4f}")
-        c[1].metric("QueryForge vs Nemotron Ultra", f"{gap_pts(s4_s2):+.1f} pts",
+        c[1].metric("QueryForge vs Nemotron 3 Ultra", f"{gap_pts(s4_s2):+.1f} pts",
                     f"{100 * s4_s2['base_acc']:.1f}% → {100 * s4_s2['new_acc']:.1f}% · p < 0.001"
                     if s4_s2["p_value"] < 0.001 else f"p = {s4_s2['p_value']:.3f}")
         c[2].metric("Cost per 1k tickets (QueryForge)", f"${cost['S4']:.2f}",
@@ -329,7 +337,8 @@ elif page == "Benchmark":
     if summary:
         st.divider()
         st.subheader("Hand-written questions (n = 30)")
-        st.caption("Paired against the S1 baseline on the same 30 questions. n = 30 is small: treat these as directional.")
+        st.caption("Paired against the baseline (GLM 5.3 Flash, S1) on the same 30 questions. "
+                   "n = 30 is small: treat these as directional.")
         hw_rows = []
         for s in ["S0", "S1", "S2", "S4", "S5", "S5H", "S6"]:
             hw = summ.get(s, {}).get("handwritten")
@@ -378,16 +387,17 @@ else:
     if rows:
         df = pd.DataFrame([{
             "Time": r["ts"][5:16], "Requester": r["requester"], "Role": r["role"], "Question": r["question"],
-            "Setup": r["setup"], "Action": r["action"], "Status": r["status"],
+            "Setup": f"{MODEL_ONLY.get(r['setup'], r['setup'])} ({r['setup']})", "Action": r["action"], "Status": r["status"],
             "Reviewed by": r["approved_by"] or "", "Baseline (S1)": baseline_label(r),
         } for r in rows])
         cfg = st.column_config
         st.dataframe(df, width="stretch", hide_index=True, column_config={
-            "Time": cfg.TextColumn(width=95), "Requester": cfg.TextColumn(width=135), "Role": cfg.TextColumn(width=65),
-            "Question": cfg.TextColumn(width=300), "Setup": cfg.TextColumn(width=55), "Action": cfg.TextColumn(width=65),
+            "Time": cfg.TextColumn(width=95), "Requester": cfg.TextColumn(width=125), "Role": cfg.TextColumn(width=60),
+            "Question": cfg.TextColumn(width=250), "Setup": cfg.TextColumn(width=190), "Action": cfg.TextColumn(width=60),
             "Status": cfg.TextColumn(width=130), "Reviewed by": cfg.TextColumn(width=135),
             "Baseline (S1)": cfg.TextColumn(width=150, help="Baseline result on the same ticket (compare mode)"),
         })
-        st.caption("Setup S4 = QueryForge harness. In compare mode the baseline (S1) result is stored on the same row.")
+        st.caption("In compare mode the row is the QueryForge answer (GLM 5.3 Flash + harness) and the baseline "
+                   "(GLM 5.3 Flash, S1) result is stored on the same row.")
     else:
         st.write("No tickets match.")
