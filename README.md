@@ -318,8 +318,8 @@ After the runs we checked every test item where S1, S2, S4 and S5 all disagree w
 | `sellers_category_period_0034_1` | The template's gold counts all order statuses. S1, S2 and S4 drop canceled and unavailable orders, the dictionary's valid-order rule (290 vs 285). S5 asked a clarifying question. | Label convention that conflicts with the dictionary. |
 
 **The `sellers_category_period` convention also affects 8 other test items of that template**: 9 of its 12 items change if you apply the valid-order filter. If the valid-order reading were also accepted, S1 would go from 5/12 to 11/12, S2 from 3/12 to 9/12, S4 from 7/12 to 12/12, and S5 would stay at 11/12. S5 learned the all-statuses convention from the same template in the training split. Effect on the headline numbers (396 answer items):
-- **S4 vs S1:** +4.3 points becomes about +4.0 (one item).
-- **S5 vs S1:** +6.1 points becomes about +4.5. Part of the fine-tune's gain is learning this one template's labelling choice.
+- **S4 vs S1:** +4.2 points becomes about +4.0 (one item).
+- **S5 vs S1:** +6.0 points becomes about +4.5. Part of the fine-tune's gain is learning this one template's labelling choice.
 
 The other three items count against all setups equally, so they don't change any paired gap. Scope: this audit covers only the four-way-wrong items and the siblings of the one template they exposed. Other templates were not re-audited.
 
