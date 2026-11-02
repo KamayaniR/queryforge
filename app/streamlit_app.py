@@ -117,7 +117,64 @@ def answer_sentence(resp) -> str:
     return f"{len(rows)} rows returned."
 
 
-def render_answer(resp, key: str, compact: bool = False):
+# (label, pattern searched in the SQL) for the "Rules applied" chips. Display only.
+SQL_RULES = [
+    ("Valid order rule", r"not in \(\s*'canceled'\s*,\s*'unavailable'\s*\)"),
+    ("GMV = item price", r"sum\(\s*(\w+\.)?price\s*\)"),
+    ("Freight revenue", r"sum\(\s*(\w+\.)?freight_value\s*\)"),
+    ("Paid amount", r"payment_value"),
+    ("Customer = customer_unique_id", r"customer_unique_id"),
+    ("Late delivery rule", r"order_delivered_customer_date.{0,40}>\s*.{0,25}order_estimated_delivery_date"),
+    ("Delivery time rule", r"date_diff\(\s*'day'"),
+    ("Active seller (90 days)", r"2018-06-02"),
+    ("Low rating (score ≤ 2)", r"review_score\s*(<=\s*2|<\s*3)"),
+    ("Customer region", r"customer_state.{0,80}regions|regions.{0,80}customer_state"),
+    ("Seller region", r"seller_state.{0,80}regions|regions.{0,80}seller_state"),
+    ("English category name", r"category_en"),
+    ("Distinct orders", r"count\(\s*distinct\s+(\w+\.)?order_id\s*\)"),
+    ("Reviews not double-counted", r"order_id\s+in\s*\(\s*select"),
+    ("Period by purchase date", r"order_purchase_timestamp\s*(>=|<|between)"),
+    ("Period by review date", r"review_creation_date\s*(>=|<|between)"),
+]
+RELATIVE_Q = re.compile(r"\b(last|this|past)\s+(month|quarter|year|\d+\s+days)|\b(rn|right now|currently|today|recent)\b", re.I)
+
+
+def rules_applied(question: str, resp) -> list[str]:
+    """Short labels for the business rules and assumptions an answer used (derived for display)."""
+    if resp.action == "refuse":
+        reason = (resp.refusal_reason or "").lower()
+        labels = []
+        if re.search(r"read|write|delet|modif|drop|insert|updat|chang|creat|truncat|select", reason):
+            labels.append("Read-only: no writes")
+        if re.search(r"personal|name|phone|email|address|contact|cpf|card", reason):
+            labels.append("No personal data")
+        if re.search(r"instruction|injection|command", reason):
+            labels.append("Injection blocked")
+        return labels or ["Out of scope"]
+    if resp.action == "clarify":
+        return ["Ambiguous term not defined in the dictionary"]
+    if resp.error or resp.rows is None:
+        return []
+    sql = re.sub(r"\s+", " ", (resp.sql or "").lower())
+    labels = [label for label, pat in SQL_RULES if re.search(pat, sql)]
+    if "seller_state" in sql and "Seller region" not in labels:
+        labels.append("Seller location (seller_state)")
+    text = " ".join(resp.assumptions or []).lower() + " " + (question or "").lower()
+    if RELATIVE_Q.search(question or "") or "2018-08-31" in text or "as-of" in text:
+        labels.append("As-of date 2018-08-31")
+    if re.search(r"\bfiscal\b|\bfy\s?\d", text):
+        labels.append("Fiscal year starts Feb 1")
+    if "%" in (question or "") or "percent" in text:
+        labels.append("Shown as % (asked for)")
+    return labels
+
+
+def render_chips(labels):
+    if labels:
+        st.markdown("**Rules applied** &nbsp;" + " ".join(f":blue-badge[{lab}]" for lab in labels))
+
+
+def render_answer(resp, key: str, compact: bool = False, question: str = ""):
     """Answer card: sentence, metrics, table, explanation, SQL."""
     st.markdown(f"#### {answer_sentence(resp)}")
     metrics = [("Confidence", resp.confidence), ("Latency", f"{resp.latency_ms / 1000:.1f}s"),
@@ -135,6 +192,7 @@ def render_answer(resp, key: str, compact: bool = False):
         st.warning(f"**Refused:** {resp.refusal_reason}")
     if resp.error:
         st.error(resp.error)
+    render_chips(rules_applied(question, resp))
     if resp.explanation:
         st.write(f"**Explanation:** {resp.explanation}")
     if resp.assumptions:
@@ -190,6 +248,7 @@ if page == "Ask":
                 resp = cached_or_live(q, s, use_cache or example_click)
                 results.append((s, audit_log.log_ticket(resp, q, s, requester, role), resp))
         st.session_state["results"] = results
+        st.session_state["asked"] = q
 
     def approve_flag(tid, key):
         a, b = st.columns(2)
@@ -205,12 +264,12 @@ if page == "Ask":
         for col, (s, tid, resp) in zip(st.columns(len(results), gap="large"), results):
             with col:
                 st.subheader(SETUP_NAMES[s])
-                render_answer(resp, tid, compact=True)
+                render_answer(resp, tid, compact=True, question=st.session_state.get("asked", ""))
                 approve_flag(tid, tid)
     elif results:
         s, tid, resp = results[0]
         st.subheader(SETUP_NAMES[s])
-        render_answer(resp, tid)
+        render_answer(resp, tid, question=st.session_state.get("asked", ""))
         approve_flag(tid, tid)
 
 elif page == "Benchmark":
