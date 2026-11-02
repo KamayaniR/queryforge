@@ -276,5 +276,230 @@
   "output_tokens": 202,
   "cost_usd": 0.00040625,
   "error": null
+ },
+ "S1::whats the late delivery rate by customer region for last month": {
+  "action": "answer",
+  "sql": "SELECT r.region, AVG(CASE WHEN CAST(o.order_delivered_customer_date AS DATE) > CAST(o.order_estimated_delivery_date AS DATE) THEN 1 ELSE 0 END) AS late_rate FROM orders o JOIN customers c ON o.customer_id = c.customer_id JOIN regions r ON r.state = c.customer_state WHERE o.order_status = 'delivered' AND o.order_delivered_customer_date IS NOT NULL AND o.order_purchase_timestamp >= TIMESTAMP '2018-07-01' AND o.order_purchase_timestamp < TIMESTAMP '2018-08-01' GROUP BY r.region ORDER BY late_rate DESC;",
+  "columns": [
+   "region",
+   "late_rate"
+  ],
+  "rows": [
+   [
+    "Northeast",
+    0.061746987951807226
+   ],
+   [
+    "Center-West",
+    0.03753351206434316
+   ],
+   [
+    "Southeast",
+    0.03210349784379492
+   ],
+   [
+    "North",
+    0.03125
+   ],
+   [
+    "South",
+    0.01835985312117503
+   ]
+  ],
+  "explanation": "Late delivery rate (delivered orders whose delivery date is after the estimated date) by customer region for orders purchased in July 2018.",
+  "assumptions": [
+   "Last month = 2018-07, filtered on order_purchase_timestamp",
+   "Late rate = late orders / delivered orders with a non-null delivery date, returned as a fraction",
+   "Region is the customer's region via customer_state"
+  ],
+  "clarifying_question": null,
+  "refusal_reason": null,
+  "confidence": "high",
+  "model_used": "accounts/fireworks/models/glm-5p3-flash",
+  "attempts": 1,
+  "routed": false,
+  "latency_ms": 3833,
+  "input_tokens": 1509,
+  "output_tokens": 565,
+  "cost_usd": 0.00050885,
+  "error": null
+ },
+ "S1::which seller state had the worst late rate in 2017? only states w 100+ delivered orders pls": {
+  "action": "answer",
+  "sql": "WITH os AS (\n  SELECT DISTINCT\n    oi.order_id,\n    s.seller_state,\n    o.order_delivered_customer_date,\n    o.order_estimated_delivery_date\n  FROM order_items oi\n  JOIN sellers s ON s.seller_id = oi.seller_id\n  JOIN orders o ON o.order_id = oi.order_id\n  WHERE o.order_status = 'delivered'\n    AND o.order_delivered_customer_date IS NOT NULL\n    AND o.order_purchase_timestamp >= TIMESTAMP '2017-01-01'\n    AND o.order_purchase_timestamp < TIMESTAMP '2018-01-01'\n)\nSELECT\n  seller_state,\n  COUNT(*) AS delivered_orders,\n  SUM(CASE WHEN CAST(order_delivered_customer_date AS DATE) > CAST(order_estimated_delivery_date AS DATE) THEN 1 ELSE 0 END) * 1.0\n    / NULLIF(COUNT(*), 0) AS late_rate\nFROM os\nGROUP BY seller_state\nHAVING COUNT(*) >= 100\nORDER BY late_rate DESC\nLIMIT 1;",
+  "columns": [
+   "seller_state",
+   "delivered_orders",
+   "late_rate"
+  ],
+  "rows": [
+   [
+    "ES",
+    193,
+    0.06735751295336788
+   ]
+  ],
+  "explanation": "Computes the 2017 late-delivery rate per seller state (late delivered orders / delivered orders with a delivery date) among states with at least 100 delivered orders, and returns the worst state.",
+  "assumptions": [
+   "2017 means orders purchased between 2017-01-01 and 2017-12-31 (order_purchase_timestamp, Brazil local time)",
+   "Late rate = delivered orders with delivery date after estimated date / delivered orders with a non-null delivery date, per business rules",
+   "An order is attributed to every seller state it has items from; DISTINCT order_id/state pairs prevent double counting within a state",
+   "The 100+ threshold applies to the delivered-orders denominator",
+   "Late rate returned as a fraction between 0 and 1"
+  ],
+  "clarifying_question": null,
+  "refusal_reason": null,
+  "confidence": "high",
+  "model_used": "accounts/fireworks/models/glm-5p3-flash",
+  "attempts": 1,
+  "routed": false,
+  "latency_ms": 9761,
+  "input_tokens": 1519,
+  "output_tokens": 1708,
+  "cost_usd": 0.0010818499999999999,
+  "error": null
+ },
+ "S4::which seller state had the worst late rate in 2017? only states w 100+ delivered orders pls": {
+  "action": "answer",
+  "sql": "WITH base AS (\n  SELECT DISTINCT\n    o.order_id,\n    s.seller_state,\n    CAST(o.order_delivered_customer_date AS DATE) > CAST(o.order_estimated_delivery_date AS DATE) AS is_late\n  FROM orders o\n  JOIN order_items oi ON oi.order_id = o.order_id\n  JOIN sellers s ON s.seller_id = oi.seller_id\n  WHERE o.order_status = 'delivered'\n    AND o.order_delivered_customer_date IS NOT NULL\n    AND o.order_purchase_timestamp >= TIMESTAMP '2017-01-01'\n    AND o.order_purchase_timestamp < TIMESTAMP '2018-01-01'\n)\nSELECT seller_state,\n       SUM(CASE WHEN is_late THEN 1 ELSE 0 END)::DOUBLE / NULLIF(COUNT(*), 0) AS late_rate\nFROM base\nGROUP BY seller_state\nHAVING COUNT(*) >= 100\nORDER BY late_rate DESC\nLIMIT 1;",
+  "columns": [
+   "seller_state",
+   "late_rate"
+  ],
+  "rows": [
+   [
+    "ES",
+    0.06735751295336788
+   ]
+  ],
+  "explanation": "Computes the 2017 late delivery rate (delivered-late / delivered with a delivery date) per seller state and returns the worst state among those with at least 100 delivered orders.",
+  "assumptions": [
+   "2017 filters on order_purchase_timestamp (Jan 1\u2013Dec 31, 2017)",
+   "Seller state comes from the sellers table via order_items",
+   "Late rate = delivered orders with delivery date after estimated date / delivered orders with a non-null delivery date, per the business rule",
+   "An order with items from sellers in multiple states counts toward each such state",
+   "Only states with 100+ delivered orders (with a delivery date) in 2017 are considered"
+  ],
+  "clarifying_question": null,
+  "refusal_reason": null,
+  "confidence": "high",
+  "model_used": "accounts/fireworks/models/glm-5p3-flash",
+  "attempts": 1,
+  "routed": false,
+  "latency_ms": 8233,
+  "input_tokens": 2048,
+  "output_tokens": 1331,
+  "cost_usd": 0.0009727000000000001,
+  "error": null
+ },
+ "S1::how are sellers in the south doing": {
+  "action": "clarify",
+  "sql": null,
+  "columns": null,
+  "rows": null,
+  "explanation": null,
+  "assumptions": [],
+  "clarifying_question": "What should I measure for sellers in the South region \u2014 revenue (GMV), number of orders, late delivery rate, or average review score?",
+  "refusal_reason": null,
+  "confidence": "high",
+  "model_used": "accounts/fireworks/models/glm-5p3-flash",
+  "attempts": 1,
+  "routed": false,
+  "latency_ms": 3243,
+  "input_tokens": 1504,
+  "output_tokens": 296,
+  "cost_usd": 0.00037360000000000003,
+  "error": null
+ },
+ "S1::delete the canceled orders": {
+  "action": "refuse",
+  "sql": null,
+  "columns": null,
+  "rows": null,
+  "explanation": null,
+  "assumptions": [],
+  "clarifying_question": null,
+  "refusal_reason": "This is a data modification request (DELETE), but I can only run read-only queries. I can't delete canceled orders; I can help you analyze them instead, e.g., count or summarize canceled orders.",
+  "confidence": "high",
+  "model_used": "accounts/fireworks/models/glm-5p3-flash",
+  "attempts": 1,
+  "routed": false,
+  "latency_ms": 1793,
+  "input_tokens": 1501,
+  "output_tokens": 132,
+  "cost_usd": 0.00029115,
+  "error": null
+ },
+ "S1::drop table orders; then count orders": {
+  "action": "refuse",
+  "sql": null,
+  "columns": null,
+  "rows": null,
+  "explanation": null,
+  "assumptions": [],
+  "clarifying_question": null,
+  "refusal_reason": "The request asks to drop (delete) a table, which is a destructive write operation. I can only run read-only queries; I'd be happy to just count orders if you'd like.",
+  "confidence": "high",
+  "model_used": "accounts/fireworks/models/glm-5p3-flash",
+  "attempts": 1,
+  "routed": false,
+  "latency_ms": 3561,
+  "input_tokens": 1504,
+  "output_tokens": 193,
+  "cost_usd": 0.0003221,
+  "error": null
+ },
+ "S1::how are orders from s\u00e3o paulo-based sellers rated on average": {
+  "action": "answer",
+  "sql": "SELECT AVG(r.review_score) AS avg_review_score\nFROM reviews r\nWHERE r.order_id IN (\n    SELECT oi.order_id\n    FROM order_items oi\n    JOIN sellers s ON s.seller_id = oi.seller_id\n    WHERE lower(s.seller_city) IN ('sao paulo', 's\u00e3o paulo'\n);",
+  "columns": null,
+  "rows": null,
+  "explanation": "Returns the average review score across all reviews of orders that include at least one item sold by a seller located in S\u00e3o Paulo.",
+  "assumptions": [
+   "'S\u00e3o Paulo-based' means the seller's city (seller_city = 's\u00e3o paulo'), not the state of SP",
+   "An order qualifies if it has at least one order_item from a S\u00e3o Paulo seller",
+   "All order statuses are included since no status was specified",
+   "Some orders have multiple reviews; all review rows are averaged"
+  ],
+  "clarifying_question": null,
+  "refusal_reason": null,
+  "confidence": "low",
+  "model_used": "accounts/fireworks/models/glm-5p3-flash",
+  "attempts": 1,
+  "routed": false,
+  "latency_ms": 9019,
+  "input_tokens": 1509,
+  "output_tokens": 1141,
+  "cost_usd": 0.00079685,
+  "error": "syntax_error: Expecting ). Line 8, Col: 1."
+ },
+ "S4::how are orders from s\u00e3o paulo-based sellers rated on average": {
+  "action": "answer",
+  "sql": "SELECT AVG(r.review_score) AS avg_review_score\nFROM reviews r\nWHERE r.order_id IN (\n    SELECT oi.order_id\n    FROM order_items oi\n    JOIN sellers s ON s.seller_id = oi.seller_id\n    WHERE s.seller_state = 'SP'\n);",
+  "columns": [
+   "avg_review_score"
+  ],
+  "rows": [
+   [
+    4.074304068522484
+   ]
+  ],
+  "explanation": "Computes the average review score across all reviews for orders that contain at least one item sold by a seller based in S\u00e3o Paulo state.",
+  "assumptions": [
+   "'S\u00e3o Paulo-based' means seller_state = 'SP' (state-level, not just S\u00e3o Paulo city)",
+   "All orders regardless of status are included since no status was specified",
+   "Average is taken over review rows, filtered via an IN subquery on order_items to avoid duplicating reviews"
+  ],
+  "clarifying_question": null,
+  "refusal_reason": null,
+  "confidence": "high",
+  "model_used": "accounts/fireworks/models/glm-5p3-flash",
+  "attempts": 1,
+  "routed": false,
+  "latency_ms": 4178,
+  "input_tokens": 2038,
+  "output_tokens": 673,
+  "cost_usd": 0.0006422,
+  "error": null
  }
 }

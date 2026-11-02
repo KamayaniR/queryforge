@@ -80,11 +80,11 @@ def pretty(col):
 def answer_sentence(resp) -> str:
     """One plain-English sentence summarising the result (display only)."""
     if resp.action == "clarify":
-        return "QueryForge needs one detail before it can answer."
+        return "Needs one detail before answering."
     if resp.action in ("refuse",):
-        return "QueryForge can't run this request."
+        return "This request can't be run."
     if resp.action == "escalate" or resp.error:
-        return "QueryForge couldn't answer this confidently; it has been sent to a data engineer."
+        return "No answer: the query failed, so this goes to a data engineer."
     rows, cols = resp.rows or [], resp.columns or []
     if not rows:
         return "The query ran but returned no rows."
@@ -108,14 +108,15 @@ def answer_sentence(resp) -> str:
     return f"{len(rows)} rows returned."
 
 
-def render_answer(resp, key: str):
+def render_answer(resp, key: str, compact: bool = False):
     """Answer card: sentence, metrics, table, explanation, SQL."""
     st.markdown(f"#### {answer_sentence(resp)}")
-    m = st.columns(4)
-    m[0].metric("Action", resp.action)
-    m[1].metric("Confidence", resp.confidence)
-    m[2].metric("Latency", f"{resp.latency_ms / 1000:.1f}s")
-    m[3].metric("Cost", f"${resp.cost_usd:.5f}")
+    metrics = [("Confidence", resp.confidence), ("Latency", f"{resp.latency_ms / 1000:.1f}s"),
+               ("Cost", f"${resp.cost_usd:.5f}"), ("Action", resp.action)]
+    rows = [metrics[:2], metrics[2:]] if compact else [metrics]
+    for row in rows:
+        for col, (label, value) in zip(st.columns(len(row)), row):
+            col.metric(label, value)
     st.caption("Model: " + model_label(resp.model_used) + (" (routed to the large model)" if resp.routed else ""))
     if resp.action == "answer" and resp.rows is not None:
         st.dataframe(display_df(resp), width="stretch", hide_index=True)
@@ -157,23 +158,40 @@ if page == "Ask":
     available = [s for s in SETUP_NAMES if s in CFG["setups"] and (s not in ("S5", "S5H") or CFG["models"]["tuned"]["id"])]
     setup = c3.selectbox("Setup", available, index=available.index("S4") if "S4" in available else 0,
                          format_func=SETUP_NAMES.get)
-    q = st.text_area("Ticket", "whats the late delivery rate by customer region for last month", height=90)
-    use_cache = st.toggle("Use cached demo answers", value=True)
+    q = st.text_area("Ticket", "whats the late delivery rate by customer region for last month", height=90, key="ticket")
+    t1, t2 = st.columns(2)
+    compare_mode = t1.toggle("Compare Baseline (S1) vs QueryForge (S4)", value=True, key="compare")
+    use_cache = t2.toggle("Use cached demo answers", value=True)
     if st.button("Submit ticket", type="primary") and q.strip():
+        setups = ["S1", "S4"] if compare_mode else [setup]
+        results = []
         with st.spinner("Writing and running SQL..."):
-            resp = cached_or_live(q, setup, use_cache)
-        st.session_state["last"] = (audit_log.log_ticket(resp, q, setup, requester, role), resp)
+            for s in setups:
+                resp = cached_or_live(q, s, use_cache)
+                results.append((s, audit_log.log_ticket(resp, q, s, requester, role), resp))
+        st.session_state["results"] = results
 
-    if "last" in st.session_state:
-        tid, resp = st.session_state["last"]
-        render_answer(resp, tid)
+    def approve_flag(tid, key):
         a, b = st.columns(2)
-        if a.button("Approve"):
+        if a.button("Approve", key=f"approve_{key}"):
             audit_log.set_status(tid, "approved", requester)
             st.success("Approved and logged.")
-        if b.button("Flag for data engineer"):
+        if b.button("Flag for data engineer", key=f"flag_{key}"):
             audit_log.set_status(tid, "flagged", requester)
             st.warning("Flagged for review.")
+
+    results = st.session_state.get("results", [])
+    if len(results) > 1:
+        for col, (s, tid, resp) in zip(st.columns(len(results), gap="large"), results):
+            with col:
+                st.subheader(SETUP_NAMES[s])
+                render_answer(resp, tid, compact=True)
+                approve_flag(tid, tid)
+    elif results:
+        s, tid, resp = results[0]
+        st.subheader(SETUP_NAMES[s])
+        render_answer(resp, tid)
+        approve_flag(tid, tid)
 
 elif page == "Benchmark":
     st.title("Benchmark")
