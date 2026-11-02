@@ -31,8 +31,7 @@ def log_ticket(resp, question, setup, requester, role) -> str:
         con.execute("INSERT INTO tickets VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
             tid, time.strftime("%Y-%m-%d %H:%M:%S"), requester, role, question, resp.action, resp.sql,
             hashlib.sha256(json.dumps(rows, default=str).encode()).hexdigest()[:16], len(rows), resp.model_used,
-            setup, resp.latency_ms, resp.cost_usd, resp.confidence, None,
-            "needs_review" if resp.confidence == "low" or resp.error else "answered"))
+            setup, resp.latency_ms, resp.cost_usd, resp.confidence, None, "pending"))
     return tid
 
 
@@ -41,8 +40,15 @@ def set_status(ticket_id, status, by):
         con.execute("UPDATE tickets SET status = ?, approved_by = ? WHERE ticket_id = ?", (status, by, ticket_id))
 
 
-def recent(limit=200):
+STATUSES = ("pending", "approved", "flagged")
+_LEGACY = {"answered": "pending", "needs_review": "pending"}  # statuses written by earlier versions
+
+
+def recent(limit=500, status=None):
     with _con() as con:
-        cur = con.execute("SELECT * FROM tickets ORDER BY ts DESC LIMIT ?", (limit,))
+        cur = con.execute("SELECT * FROM tickets ORDER BY ts DESC, rowid DESC LIMIT ?", (limit,))
         cols = [d[0] for d in cur.description]
-        return [dict(zip(cols, r)) for r in cur.fetchall()]
+        rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+    for r in rows:
+        r["status"] = _LEGACY.get(r["status"], r["status"])
+    return [r for r in rows if status in (None, r["status"])]

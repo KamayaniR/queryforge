@@ -335,12 +335,25 @@ elif page == "Benchmark":
 
 else:
     st.title("Audit log")
-    rows = audit_log.recent()
+    st.caption("Every submitted ticket is logged. Approve / Flag on the Ask page update the status here.")
+    all_rows = audit_log.recent()
+    counts = {s: sum(r["status"] == s for r in all_rows) for s in audit_log.STATUSES}
+    c = st.columns(4)
+    c[0].metric("Tickets", len(all_rows))
+    for col, s in zip(c[1:], audit_log.STATUSES):
+        col.metric(s.capitalize(), counts[s])
+    f1, f2 = st.columns([1, 2])
+    status = f1.selectbox("Status", ["all", *audit_log.STATUSES], key="status_filter")
+    search = f2.text_input("Search", key="audit_search")
+    rows = audit_log.recent(status=None if status == "all" else status)
+    if search:
+        rows = [r for r in rows if search.lower() in " ".join(map(str, r.values())).lower()]
     if rows:
-        df = pd.DataFrame(rows)
-        f = st.text_input("Search")
-        if f:
-            df = df[df.apply(lambda r: f.lower() in " ".join(map(str, r.values)).lower(), axis=1)]
-        st.dataframe(df, width="stretch")
+        df = pd.DataFrame(rows)[["ts", "requester", "role", "question", "setup", "action", "status", "approved_by"]]
+        df["setup"] = df["setup"].map(lambda s: ALL_SETUP_NAMES.get(s, s))
+        df["approved_by"] = df["approved_by"].fillna("")
+        df = df.rename(columns={"ts": "Timestamp", "requester": "Requester", "role": "Role", "question": "Question",
+                                "setup": "Setup", "action": "Action", "status": "Status", "approved_by": "Reviewed by"})
+        st.dataframe(df, width="stretch", hide_index=True)
     else:
-        st.write("No tickets yet.")
+        st.write("No tickets match.")
