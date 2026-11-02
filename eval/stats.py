@@ -20,9 +20,15 @@ RUNS = ROOT / CFG["paths"]["runs"]
 N_BOOT = 5000
 
 
-def load_run(run_id):
-    path = RUNS / run_id / "results.jsonl"
-    return {r["item_id"]: r for r in map(json.loads, open(path))} if path.exists() else None
+def load_run(run_ids):
+    """Load one run id or a list of run ids (e.g. test + hand-written) merged by item_id."""
+    out = {}
+    for run_id in [run_ids] if isinstance(run_ids, str) else run_ids:
+        path = RUNS / run_id / "results.jsonl"
+        if not path.exists():
+            return None
+        out.update({r["item_id"]: r for r in map(json.loads, open(path))})
+    return out
 
 
 def mcnemar(base, new):

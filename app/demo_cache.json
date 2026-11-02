@@ -1,0 +1,280 @@
+{
+ "S1::what % of customers r repeat customers": {
+  "action": "answer",
+  "sql": "WITH valid_orders AS (\n  SELECT o.order_id, c.customer_unique_id\n  FROM orders o\n  JOIN customers c ON o.customer_id = c.customer_id\n  WHERE o.order_status NOT IN ('canceled', 'unavailable')\n),\nper_customer AS (\n  SELECT customer_unique_id, COUNT(DISTINCT order_id) AS order_count\n  FROM valid_orders\n  GROUP BY customer_unique_id\n)\nSELECT\n  100.0 * SUM(CASE WHEN order_count >= 2 THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) AS repeat_customer_pct\nFROM per_customer;",
+  "columns": [
+   "repeat_customer_pct"
+  ],
+  "rows": [
+   [
+    3.0403200336877565
+   ]
+  ],
+  "explanation": "Shares of customers (unique customer_unique_id) with 2 or more valid orders out of all customers with at least one valid order, returned as a percentage.",
+  "assumptions": [
+   "Customer = customers.customer_unique_id",
+   "Valid order = order_status NOT IN ('canceled', 'unavailable'), over all time",
+   "Percentage requested, so the share is multiplied by 100"
+  ],
+  "clarifying_question": null,
+  "refusal_reason": null,
+  "confidence": "high",
+  "model_used": "accounts/fireworks/models/glm-5p3-flash",
+  "attempts": 1,
+  "routed": false,
+  "latency_ms": 5307,
+  "input_tokens": 1504,
+  "output_tokens": 722,
+  "cost_usd": 0.0005866000000000001,
+  "error": null
+ },
+ "S4::what % of customers r repeat customers": {
+  "action": "answer",
+  "sql": "WITH valid_orders AS (\n  SELECT o.order_id, c.customer_unique_id\n  FROM orders o\n  JOIN customers c ON o.customer_id = c.customer_id\n  WHERE o.order_status NOT IN ('canceled', 'unavailable')\n),\ncust_counts AS (\n  SELECT customer_unique_id, COUNT(DISTINCT order_id) AS n_orders\n  FROM valid_orders\n  GROUP BY customer_unique_id\n)\nSELECT\n  100.0 * SUM(CASE WHEN n_orders >= 2 THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) AS repeat_customer_pct\nFROM cust_counts;",
+  "columns": [
+   "repeat_customer_pct"
+  ],
+  "rows": [
+   [
+    3.0403200336877565
+   ]
+  ],
+  "explanation": "Percentage of customers (unique customers) who placed 2 or more valid orders over all time.",
+  "assumptions": [
+   "Customer = COUNT(DISTINCT customers.customer_unique_id)",
+   "Repeat customer = customer_unique_id with 2+ valid orders (order_status NOT IN ('canceled','unavailable'))",
+   "All-time period (no date range given)",
+   "Result returned as a percentage (0-100) since the question asked for %"
+  ],
+  "clarifying_question": null,
+  "refusal_reason": null,
+  "confidence": "high",
+  "model_used": "accounts/fireworks/models/glm-5p3-flash",
+  "attempts": 1,
+  "routed": false,
+  "latency_ms": 4360,
+  "input_tokens": 2033,
+  "output_tokens": 731,
+  "cost_usd": 0.0006704500000000001,
+  "error": null
+ },
+ "S1::number of currently active sellers in the cool stuff category": {
+  "action": "answer",
+  "sql": "SELECT COUNT(DISTINCT oi.seller_id) AS active_sellers\nFROM order_items oi\nJOIN orders o ON o.order_id = oi.order_id\nJOIN products p ON p.product_id = oi.product_id\nWHERE o.order_status NOT IN ('canceled', 'unavailable')\n  AND o.order_purchase_timestamp >= TIMESTAMP '2018-06-02'\n  AND o.order_purchase_timestamp < TIMESTAMP '2018-09-01'\n  AND LOWER(p.category_en) IN ('cool_stuff', 'cool stuff');",
+  "columns": [
+   "active_sellers"
+  ],
+  "rows": [
+   [
+    83
+   ]
+  ],
+  "explanation": "Counts distinct sellers with at least one order item in the cool_stuff category on a valid order purchased between 2018-06-02 and 2018-08-31 inclusive, per the active-seller definition.",
+  "assumptions": [
+   "\"Currently active\" uses the active-seller rule: at least one order_item on a valid order (status not canceled/unavailable) purchased 2018-06-02 to 2018-08-31 inclusive",
+   "Category matched on products.category_en ('cool_stuff', the English name for the cool_stuff category; space/underscore variants accepted)",
+   "Filter applied on order_purchase_timestamp"
+  ],
+  "clarifying_question": null,
+  "refusal_reason": null,
+  "confidence": "high",
+  "model_used": "accounts/fireworks/models/glm-5p3-flash",
+  "attempts": 1,
+  "routed": false,
+  "latency_ms": 6937,
+  "input_tokens": 1507,
+  "output_tokens": 1201,
+  "cost_usd": 0.00082655,
+  "error": null
+ },
+ "S4::number of currently active sellers in the cool stuff category": {
+  "action": "answer",
+  "sql": "SELECT COUNT(DISTINCT oi.seller_id) AS active_sellers\nFROM order_items oi\nJOIN products p ON p.product_id = oi.product_id\nJOIN orders o ON o.order_id = oi.order_id\nWHERE p.category_en = 'cool_stuff'\n  AND o.order_status NOT IN ('canceled', 'unavailable')\n  AND o.order_purchase_timestamp >= TIMESTAMP '2018-06-02'\n  AND o.order_purchase_timestamp < TIMESTAMP '2018-09-01';",
+  "columns": [
+   "active_sellers"
+  ],
+  "rows": [
+   [
+    83
+   ]
+  ],
+  "explanation": "Counts distinct sellers who sold at least one 'cool_stuff' product on a valid order purchased between 2018-06-02 and 2018-08-31 inclusive, per the active-seller definition.",
+  "assumptions": [
+   "\"Currently active\" means the active-seller rule: at least one order_item on a valid order (status not canceled/unavailable) purchased 2018-06-02 through 2018-08-31 inclusive",
+   "Category filter uses products.category_en = 'cool_stuff'",
+   "Filter applied on order_purchase_timestamp"
+  ],
+  "clarifying_question": null,
+  "refusal_reason": null,
+  "confidence": "high",
+  "model_used": "accounts/fireworks/models/glm-5p3-flash",
+  "attempts": 1,
+  "routed": false,
+  "latency_ms": 3361,
+  "input_tokens": 2036,
+  "output_tokens": 544,
+  "cost_usd": 0.0005773999999999999,
+  "error": null
+ },
+ "S4::whats the late delivery rate by customer region for last month": {
+  "action": "answer",
+  "sql": "SELECT r.region,\n       SUM(CASE WHEN CAST(o.order_delivered_customer_date AS DATE) > CAST(o.order_estimated_delivery_date AS DATE) THEN 1 ELSE 0 END)::DOUBLE\n         / NULLIF(COUNT(*), 0) AS late_rate\nFROM orders o\nJOIN customers c ON o.customer_id = c.customer_id\nJOIN regions r ON r.state = c.customer_state\nWHERE o.order_status = 'delivered'\n  AND o.order_delivered_customer_date IS NOT NULL\n  AND o.order_purchase_timestamp >= TIMESTAMP '2018-07-01'\n  AND o.order_purchase_timestamp < TIMESTAMP '2018-08-01'\nGROUP BY r.region\nORDER BY late_rate DESC;",
+  "columns": [
+   "region",
+   "late_rate"
+  ],
+  "rows": [
+   [
+    "Northeast",
+    0.061746987951807226
+   ],
+   [
+    "Center-West",
+    0.03753351206434316
+   ],
+   [
+    "Southeast",
+    0.03210349784379492
+   ],
+   [
+    "North",
+    0.03125
+   ],
+   [
+    "South",
+    0.01835985312117503
+   ]
+  ],
+  "explanation": "Late delivery rate (late delivered orders / delivered orders with a delivery date) for orders purchased in July 2018, grouped by the customer's region.",
+  "assumptions": [
+   "\"Last month\" = July 2018, filtered on order_purchase_timestamp",
+   "Late rate = orders with delivered_customer_date > estimated_delivery_date, divided by delivered orders with a non-null delivery date, per the business rules",
+   "Region is the customer's region via customers.customer_state joined to regions",
+   "Rate returned as a fraction between 0 and 1"
+  ],
+  "clarifying_question": null,
+  "refusal_reason": null,
+  "confidence": "high",
+  "model_used": "accounts/fireworks/models/glm-5p3-flash",
+  "attempts": 1,
+  "routed": false,
+  "latency_ms": 4501,
+  "input_tokens": 2038,
+  "output_tokens": 710,
+  "cost_usd": 0.0006607000000000001,
+  "error": null
+ },
+ "S4::how are sellers in the south doing": {
+  "action": "clarify",
+  "sql": null,
+  "columns": null,
+  "rows": null,
+  "explanation": null,
+  "assumptions": [],
+  "clarifying_question": "What should I measure for sellers in the South region \u2014 e.g., revenue (GMV), number of orders, late-delivery rate, or average review score \u2014 and over what time period?",
+  "refusal_reason": null,
+  "confidence": "high",
+  "model_used": "accounts/fireworks/models/glm-5p3-flash",
+  "attempts": 1,
+  "routed": false,
+  "latency_ms": 3041,
+  "input_tokens": 2033,
+  "output_tokens": 389,
+  "cost_usd": 0.00049945,
+  "error": null
+ },
+ "S4::delete the canceled orders": {
+  "action": "refuse",
+  "sql": null,
+  "columns": null,
+  "rows": null,
+  "explanation": null,
+  "assumptions": [],
+  "clarifying_question": null,
+  "refusal_reason": "I can only read data. Requests to change, delete or create data are not allowed.",
+  "confidence": "high",
+  "model_used": "accounts/fireworks/models/glm-5p3-flash",
+  "attempts": 0,
+  "routed": false,
+  "latency_ms": 0,
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "cost_usd": 0.0,
+  "error": null
+ },
+ "S4::drop table orders; then count orders": {
+  "action": "refuse",
+  "sql": null,
+  "columns": null,
+  "rows": null,
+  "explanation": null,
+  "assumptions": [],
+  "clarifying_question": null,
+  "refusal_reason": "I can only read data. Requests to change, delete or create data are not allowed.",
+  "confidence": "high",
+  "model_used": "accounts/fireworks/models/glm-5p3-flash",
+  "attempts": 0,
+  "routed": false,
+  "latency_ms": 0,
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "cost_usd": 0.0,
+  "error": null
+ },
+ "S1::how many watches gifts products are in the catalog": {
+  "action": "answer",
+  "sql": "SELECT COUNT(*) AS product_count FROM products WHERE category_en = 'watches gifts';",
+  "columns": [
+   "product_count"
+  ],
+  "rows": [
+   [
+    0
+   ]
+  ],
+  "explanation": "Counts all products in the catalog whose English category is 'watches gifts'.",
+  "assumptions": [
+   "'watches gifts' refers to the category_en value translated from the Portuguese category 'watches_gifts'",
+   "Catalog means the products table, counted by rows (one row per product_id)"
+  ],
+  "clarifying_question": null,
+  "refusal_reason": null,
+  "confidence": "high",
+  "model_used": "accounts/fireworks/models/glm-5p3-flash",
+  "attempts": 1,
+  "routed": false,
+  "latency_ms": 2055,
+  "input_tokens": 1506,
+  "output_tokens": 282,
+  "cost_usd": 0.0003669,
+  "error": null
+ },
+ "S4::how many watches gifts products are in the catalog": {
+  "action": "answer",
+  "sql": "SELECT COUNT(*) AS watches_gifts_products FROM products WHERE category_en = 'watches_gifts';",
+  "columns": [
+   "watches_gifts_products"
+  ],
+  "rows": [
+   [
+    1329
+   ]
+  ],
+  "explanation": "Counts the rows in the products catalog whose English category is 'watches_gifts'.",
+  "assumptions": [
+   "'In the catalog' means rows in the products table, counted by product_id (one row per product).",
+   "Category matched on category_en = 'watches_gifts'."
+  ],
+  "clarifying_question": null,
+  "refusal_reason": null,
+  "confidence": "high",
+  "model_used": "accounts/fireworks/models/glm-5p3-flash",
+  "attempts": 1,
+  "routed": false,
+  "latency_ms": 1688,
+  "input_tokens": 2035,
+  "output_tokens": 202,
+  "cost_usd": 0.00040625,
+  "error": null
+ }
+}

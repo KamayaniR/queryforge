@@ -17,7 +17,8 @@ models:
     price_out: 2.40
     extra_body: {}           # same settings as small for a fair reference (reasoning on)
   tuned:
-    id: null                 # filled after fine-tune (checkpoint path or deployed model id)
+    id: kamayanirai78-jyb1te/run-a3628634fb844ad4a9fade93b0bd61c4/qf-tuned-cce4bcb8  # sampler snapshot from train/finetune.py
+    backend: sampler         # serverless sampling client (token in/out); same chat template as the base
     price_in: 0.15           # LoRA on glm-5p3-flash served serverless at base price (verify after deploy)
     price_out: 0.50
     extra_body: {}

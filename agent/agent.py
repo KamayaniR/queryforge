@@ -92,12 +92,30 @@ def parse_output(text: str) -> ModelOutput:
     return ModelOutput(**json.loads(t[start:end + 1]))
 
 
+_sampler_lock = threading.Lock()
+_sampler = {}
+
+
+def _tuned_sampler(path: str):
+    """Serverless sampling client for a fine-tuned LoRA snapshot (token in, token out)."""
+    with _sampler_lock:
+        if path not in _sampler:
+            from fireworks.training.sdk import FiretitanServiceClient
+            from transformers import AutoTokenizer
+            tok = AutoTokenizer.from_pretrained(CFG["training"]["tokenizer"])
+            service = FiretitanServiceClient(api_key=os.environ["FIREWORKS_API_KEY"],
+                                             base_url=CFG["fireworks"]["training_base_url"])
+            _sampler[path] = (service.create_sampling_client(model_path=path, tokenizer=tok), tok)
+        return _sampler[path]
+
+
 class _Call:
     """Tracks tokens, cost and attempts across the model calls of one ticket."""
 
     def __init__(self, model_key: str):
         m = CFG["models"][model_key]
         self.model_id, self.extra = m["id"], m.get("extra_body") or {}
+        self.backend = m.get("backend", "chat")
         self.p_in, self.p_out = m["price_in"] or 0, m["price_out"] or 0
         self.in_tok = self.out_tok = self.attempts = 0
 
@@ -107,11 +125,30 @@ class _Call:
 
     def __call__(self, messages) -> str:
         self.attempts += 1
+        if self.backend == "sampler":
+            return self._sample(messages)
         r = _client.chat.completions.create(model=self.model_id, messages=messages, temperature=GEN["temperature"],
                                             max_tokens=GEN["max_tokens"], extra_body=self.extra or None)
         self.in_tok += r.usage.prompt_tokens
         self.out_tok += r.usage.completion_tokens
         return r.choices[0].message.content or ""
+
+    def _sample(self, messages) -> str:
+        """Render the base model's chat template locally and sample the tuned weights."""
+        from fireworks.training.sdk import types
+        sampler, tok = _tuned_sampler(self.model_id)
+        prompt = tok.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        ids = tok.encode(prompt, add_special_tokens=False)
+        params = types.SamplingParams(max_tokens=GEN["max_tokens"], temperature=GEN["temperature"],
+                                      stop=[tok.eos_token, "<|user|>", "<|observation|>"])
+        out = sampler.sample(types.ModelInput.from_ints(ids), 1, params).result().sequences[0].tokens
+        self.in_tok += len(ids)
+        self.out_tok += len(out)
+        text = tok.decode(out, skip_special_tokens=False)
+        text = text.split("</think>", 1)[-1]  # drop any reasoning trace
+        for t in (tok.eos_token, "<|user|>", "<|observation|>"):
+            text = text.replace(t, "")
+        return text
 
 
 def _classify(e: Exception) -> str:

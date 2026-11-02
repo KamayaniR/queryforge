@@ -1,0 +1,13 @@
+{
+ "n": 30,
+ "exec_accuracy": 0.7333,
+ "behavior_accuracy": null,
+ "false_clarify_rate": 0.0,
+ "p50_latency_ms": 46611,
+ "p95_latency_ms": 157541,
+ "cost_usd": 0.0118,
+ "cost_per_1k": 0.3932,
+ "failures": {
+  "wrong_result": 8
+ }
+}

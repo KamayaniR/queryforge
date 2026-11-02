@@ -8,6 +8,7 @@ Usage: python eval/run_eval.py --setup S1 [--limit 10] [--run-id ID] [--allow-un
 import argparse
 import hashlib
 import json
+import random
 import subprocess
 import sys
 import threading
@@ -127,6 +128,8 @@ def main():
     (out_dir / "manifest.json").write_text(manifest.model_dump_json(indent=1))
 
     todo = [it for it in items if it.id not in done]
+    # Seeded random submission order: if a slow run is stopped early, finished items are a random subset.
+    random.Random(CFG["seed"]).shuffle(todo)
     budget = CFG["limits"]["budget_usd_per_run"]
     spent = 0.0
     lock = threading.Lock()

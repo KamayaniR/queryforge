@@ -1,0 +1,3 @@
+S5H_test: 416 to run (0 already done), budget $5.0
+prefill_queue_duration is unavailable; AdaptiveConcurrencyController is using HTTP 429/503 and transport-error congestion signals instead
+  25/416  $0.010  161s
